@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { api, onLoginEvent } from "../lib/bridge";
 import type { LoginEvent, QuotaSnapshot, Settings, StatusInfo } from "../lib/types";
-import { Btn, ConfirmBar, Empty, Pill, fmtNum } from "../components/ui";
+import { Btn, ConfirmBar, Empty, Modal, Pill, fmtNum } from "../components/ui";
 import costrictIcon from "../assets/logos/costrict-icon.png";
 
 export default function Dashboard({
@@ -42,7 +42,7 @@ export default function Dashboard({
 /* ---------------- 认证 + 服务(hero) ---------------- */
 
 function HeroCard({ status, onChanged }: { status: StatusInfo; onChanged: () => void }) {
-  const [panelOpen, setPanelOpen] = useState(!status.loggedIn);
+  const [loginOpen, setLoginOpen] = useState(false);
   const [stage, setStage] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -58,7 +58,10 @@ function HeroCard({ status, onChanged }: { status: StatusInfo; onChanged: () => 
       if (e.stage === "error") setError(e.message ?? "登录失败");
       if (e.stage === "done" || e.stage === "error" || e.stage === "cancelled") {
         setBusy(false);
-        if (e.stage === "done") onChanged();
+        if (e.stage === "done") {
+          setLoginOpen(false);
+          onChanged();
+        }
       }
     }).then((un) => (unRef.current = un));
     return () => unRef.current?.();
@@ -112,11 +115,11 @@ function HeroCard({ status, onChanged }: { status: StatusInfo; onChanged: () => 
         </div>
         <div className="hero-actions">
           {status.loggedIn ? (
-            <Btn variant="ghost" onClick={() => setPanelOpen((o) => !o)}>
+            <Btn variant="ghost" onClick={() => setLoginOpen(true)}>
               重新认证
             </Btn>
           ) : (
-            <Btn variant="primary" onClick={() => setPanelOpen(true)}>
+            <Btn variant="primary" onClick={() => setLoginOpen(true)}>
               登录 CoStrict
             </Btn>
           )}
@@ -136,36 +139,29 @@ function HeroCard({ status, onChanged }: { status: StatusInfo; onChanged: () => 
         </div>
       </div>
 
-      {panelOpen && (
-        <div className="hero-panel">
-          <div className="hero-panel-inner">
-            <div className="form-row">
-              <LoginFields defaultUrl={status.configuredBaseUrl} disabled={busy} onStart={startLogin} busy={busy} onCancel={() => api.cancelLogin()} />
-            </div>
-            {busy && (
-              <div className="login-progress">
-                <span className="spinner" />
-                <span>{message ?? "正在生成登录链接…"}</span>
-              </div>
-            )}
-            {error && <p className="error-text">{error}</p>}
-            {stage === "done" && (
-              <p className="hint">
-                认证完成。
-                <button
-                  className="link-btn"
-                  onClick={() => {
-                    setPanelOpen(false);
-                    setStage(null);
-                  }}
-                >
-                  收起
-                </button>
-              </p>
-            )}
-          </div>
+      <Modal
+        open={loginOpen}
+        title={status.loggedIn ? "重新认证 CoStrict" : "登录 CoStrict"}
+        onClose={() => {
+          if (!busy) {
+            setLoginOpen(false);
+            setError(null);
+            setStage(null);
+          }
+        }}
+      >
+        <div className="form-row">
+          <LoginFields defaultUrl={status.configuredBaseUrl} disabled={busy} onStart={startLogin} busy={busy} onCancel={() => api.cancelLogin()} />
         </div>
-      )}
+        {busy && (
+          <div className="login-progress">
+            <span className="spinner" />
+            <span>{message ?? "正在生成登录链接…"}</span>
+          </div>
+        )}
+        {error && <p className="error-text">{error}</p>}
+        {stage === "done" && <p className="hint">认证完成,弹窗可关闭。</p>}
+      </Modal>
       {svcMsg && <p className="hint">{svcMsg}</p>}
       {!status.binaryPresent && <p className="error-text">未找到 costrict-router 二进制,请到「设置」下载安装。</p>}
     </section>
@@ -276,7 +272,7 @@ function AccessCard({
           <span className="trio-label">API Key</span>
           <div className="trio-value">
             <code title={key ?? undefined}>
-              {key ? (keyRevealed ? key : key.slice(0, 10) + "•".repeat(12)) : "登录后签发,详见下方说明"}
+              {key ? (keyRevealed ? key : key.slice(0, 10) + "•".repeat(12)) : "登录后自动签发"}
             </code>
             {key && (
               <>
@@ -314,7 +310,7 @@ function AccessCard({
       {status.keyFromFallback && <p className="hint">⚠ 当前 key 以文件形式保存在数据目录(系统凭据库不可用)。</p>}
       <div className="trio-foot">
         <span className="flex-1" />
-        <button className="link-btn danger-link" disabled={!key} onClick={() => setConfirmReset(true)}>
+        <button className="link-btn danger-link" onClick={() => setConfirmReset(true)}>
           重签 Key(key reset)
         </button>
       </div>

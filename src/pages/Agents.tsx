@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../lib/bridge";
-import { AGENT_ENTRIES, UNSUPPORTED_TOOLS, renderTemplate, type AgentEntry } from "../lib/agents";
+import { AGENT_ENTRIES, renderTemplate, type AgentEntry } from "../lib/agents";
 import type { Settings, StatusInfo } from "../lib/types";
-import { Btn, Card, CodeBlock, Empty, Pill } from "../components/ui";
+import { Btn, Card, CodeBlock, Pill } from "../components/ui";
 
 export default function AgentsPage({
   status,
@@ -112,22 +112,11 @@ export default function AgentsPage({
         onCatalog={selected.action === "codex-catalog" ? runCatalog : undefined}
       />
 
-      <Card title="这些工具暂不支持自定义模型">
-        <ul className="unsupported-list">
-          {UNSUPPORTED_TOOLS.map((t) => (
-            <li key={t.name}>
-              <b>{t.name}</b>:{t.reason}
-            </li>
-          ))}
-        </ul>
-      </Card>
-
       {catalogOut && (
         <Card title="codex-catalog 输出">
           <pre className="test-out">{catalogOut}</pre>
         </Card>
       )}
-      {!status?.keyPresent && <Empty text="提示:尚未捕获本地 Key,片段中的 Key 为占位符。" />}
     </div>
   );
 }
@@ -185,11 +174,6 @@ function AgentCard({
           </Btn>
         </div>
       )}
-      {entry.notes?.map((n, i) => (
-        <p key={i} className="hint">
-          {renderTemplate(n, vars)}
-        </p>
-      ))}
     </Card>
   );
 }

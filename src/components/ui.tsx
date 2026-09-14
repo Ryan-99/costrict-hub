@@ -151,6 +151,33 @@ export function ConfirmBar({
   );
 }
 
+export function Modal({
+  open,
+  title,
+  onClose,
+  children,
+}: {
+  open: boolean;
+  title: string;
+  onClose: () => void;
+  children: ReactNode;
+}) {
+  if (!open) return null;
+  return (
+    <div className="confirm-overlay" onClick={onClose}>
+      <div className="confirm-box" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-head">
+          <h3>{title}</h3>
+          <button className="icon-btn" onClick={onClose} aria-label="关闭">
+            ✕
+          </button>
+        </div>
+        {children}
+      </div>
+    </div>
+  );
+}
+
 export function Empty({ text }: { text: string }) {
   return <div className="empty">{text}</div>;
 }
