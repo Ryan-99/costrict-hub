@@ -1,0 +1,45 @@
+[package]
+name = "costrict-hub"
+version = "0.1.0"
+description = "CoStrict Hub - CoStrict 额度代理中枢"
+authors = ["Ryan"]
+edition = "2021"
+
+[lib]
+# The `_lib` suffix may seem redundant but it is necessary
+# to make the lib name unique and wouldn't conflict with the bin name.
+# This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
+name = "costrict_hub_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon"] }
+tauri-plugin-opener = "2"
+tauri-plugin-autostart = "2"
+tauri-plugin-single-instance = "2"
+tauri-plugin-clipboard-manager = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "process", "time", "sync", "fs", "io-util"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "gzip"] }
+sha2 = "0.10"
+uuid = { version = "1", features = ["v4"] }
+thiserror = "2"
+keyring = { version = "3", features = ["windows-native"] }
+chrono = { version = "0.4", features = ["serde"] }
+dirs = "6"
+regex = "1"
+url = "2"
+tar = "0.4"
+flate2 = "1"
+zip = { version = "2", default-features = false, features = ["deflate"] }
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = 3
+panic = "abort"
+strip = true
