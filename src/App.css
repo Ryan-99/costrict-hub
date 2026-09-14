@@ -73,7 +73,69 @@ pre {
 
 .app {
   display: flex;
+  flex-direction: column;
   height: 100%;
+}
+
+/* ---------- 自定义标题栏 ---------- */
+.titlebar {
+  height: 38px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-left: 12px;
+  background: var(--bg);
+  user-select: none;
+}
+
+.titlebar-icon {
+  width: 17px;
+  height: 17px;
+  pointer-events: none;
+}
+
+.titlebar-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-2);
+  letter-spacing: 0.1px;
+}
+
+.titlebar-badge {
+  font-size: 10.5px;
+  color: var(--text-3);
+  background: #ececf0;
+  border-radius: 999px;
+  padding: 1.5px 8px;
+}
+
+.app-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.win-btn {
+  width: 46px;
+  height: 38px;
+  border: none;
+  background: transparent;
+  color: var(--text-2);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+
+.win-btn:hover {
+  background: #e9e9ee;
+  color: var(--text);
+}
+
+.win-btn.close:hover {
+  background: var(--danger);
+  color: #fff;
 }
 
 /* ---------- 侧栏 ---------- */
@@ -85,19 +147,19 @@ pre {
   border-right: 1px solid #ececf0;
   display: flex;
   flex-direction: column;
-  padding: 20px 12px 14px;
+  padding: 10px 12px 14px;
 }
 
 .logo {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 2px 8px 20px;
+  padding: 4px 8px 16px;
 }
 
 .logo-img {
-  width: 36px;
-  height: 36px;
+  width: 34px;
+  height: 34px;
   border-radius: 10px;
   object-fit: contain;
   background: linear-gradient(135deg, var(--grad-a), var(--grad-b));
@@ -924,6 +986,89 @@ select:focus,
 }
 
 /* ---------- 接入页 ---------- */
+.shelf-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.shelf-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.shelf-group {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  color: var(--text-3);
+  width: 56px;
+  flex-shrink: 0;
+  padding-top: 6px;
+}
+
+.shelf-tiles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.shelf-tile {
+  border: 1px solid transparent;
+  background: transparent;
+  border-radius: 12px;
+  padding: 7px 10px 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  min-width: 76px;
+}
+
+.shelf-tile:hover {
+  background: #f2f4f8;
+}
+
+.shelf-tile.active {
+  background: var(--tint);
+  border-color: #b9d2ff;
+}
+
+.shelf-logo {
+  width: 40px;
+  height: 40px;
+  border-radius: 11px;
+  object-fit: contain;
+  background: #fff;
+  border: 1px solid var(--card-border);
+  padding: 4px;
+  box-sizing: border-box;
+}
+
+.shelf-letter {
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, var(--grad-a), var(--grad-b));
+  color: #fff;
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.shelf-name {
+  font-size: 11px;
+  color: var(--text-2);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.shelf-tile.active .shelf-name {
+  color: var(--primary);
+  font-weight: 600;
+}
+
 .agents-bar-row {
   display: flex;
   align-items: center;

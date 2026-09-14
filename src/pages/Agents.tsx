@@ -7,7 +7,7 @@ import { Btn, Card, CodeBlock, Empty, Pill } from "../components/ui";
 const GROUPS: { id: AgentEntry["group"]; label: string }[] = [
   { id: "domestic", label: "国产工具" },
   { id: "international", label: "国际工具" },
-  { id: "generic", label: "通用接入" },
+  { id: "generic", label: "通用" },
 ];
 
 export default function AgentsPage({
@@ -24,8 +24,8 @@ export default function AgentsPage({
   const [hideKey, setHideKey] = useState(false);
   const [key, setKey] = useState<string>("");
   const [catalogOut, setCatalogOut] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string>("workbuddy");
 
-  // 跟随仪表盘改的默认模型
   useEffect(() => {
     if (settings?.defaultModel) setModel(settings.defaultModel);
   }, [settings?.defaultModel]);
@@ -50,7 +50,7 @@ export default function AgentsPage({
   };
 
   const vars = useMemo(
-    () => ({ origin, key: hideKey ? "sk-costrict-****（复制时请先点显示）" : key, model }),
+    () => ({ origin, key: hideKey ? "sk-costrict-****(复制时请先点显示)" : key, model }),
     [origin, key, model, hideKey],
   );
 
@@ -63,6 +63,8 @@ export default function AgentsPage({
     }
   };
 
+  const selected = AGENT_ENTRIES.find((e) => e.id === selectedId) ?? AGENT_ENTRIES[0];
+
   return (
     <div className="page">
       <div className="page-head">
@@ -70,6 +72,31 @@ export default function AgentsPage({
         <Pill tone="neutral">把 CoStrict 额度接到你的 AI 工具</Pill>
       </div>
 
+      {/* logo 选择架:点图标切换下方详细配置 */}
+      <Card className="shelf-card">
+        {GROUPS.map((g) => {
+          const entries = AGENT_ENTRIES.filter((e) => e.group === g.id);
+          if (entries.length === 0) return null;
+          return (
+            <div key={g.id} className="shelf-row">
+              <span className="shelf-group">{g.label}</span>
+              <div className="shelf-tiles">
+                {entries.map((entry) => (
+                  <ShelfTile
+                    key={entry.id}
+                    entry={entry}
+                    active={entry.id === selectedId}
+                    onClick={() => setSelectedId(entry.id)}
+                  />
+                ))}
+              </div>
+            </div>
+          );
+        })}
+        <p className="hint">点 logo 查看对应工具的详细接入方法;片段已代入下方端点、Key 和默认模型,复制即用。</p>
+      </Card>
+
+      {/* 参数条 */}
       <Card className="agents-bar">
         <div className="agents-bar-row">
           <label className="agents-label">默认模型</label>
@@ -92,24 +119,14 @@ export default function AgentsPage({
           </button>
           <code className="muted">{endpoint}</code>
         </div>
-        <p className="hint">下方片段已自动代入端点、Key 和默认模型(与仪表盘联动),复制即用。</p>
       </Card>
 
-      {GROUPS.map((g) => (
-        <div key={g.id} className="agent-group">
-          <h3 className="group-title">{g.label}</h3>
-          <div className="agent-grid">
-            {AGENT_ENTRIES.filter((e) => e.group === g.id).map((entry) => (
-              <AgentCard
-                key={entry.id}
-                entry={entry}
-                vars={vars}
-                onCatalog={entry.action === "codex-catalog" ? runCatalog : undefined}
-              />
-            ))}
-          </div>
-        </div>
-      ))}
+      {/* 选中工具的详细配置 */}
+      <AgentCard
+        entry={selected}
+        vars={vars}
+        onCatalog={selected.action === "codex-catalog" ? runCatalog : undefined}
+      />
 
       <Card title="这些工具暂不支持自定义模型">
         <ul className="unsupported-list">
@@ -128,6 +145,20 @@ export default function AgentsPage({
       )}
       {!status?.keyPresent && <Empty text="提示:尚未捕获本地 Key,片段中的 Key 为占位符。" />}
     </div>
+  );
+}
+
+function ShelfTile({ entry, active, onClick }: { entry: AgentEntry; active: boolean; onClick: () => void }) {
+  const [logoOk, setLogoOk] = useState(true);
+  return (
+    <button className={`shelf-tile ${active ? "active" : ""}`} onClick={onClick} title={entry.name}>
+      {entry.logo && logoOk ? (
+        <img className="shelf-logo" src={entry.logo} alt={entry.name} onError={() => setLogoOk(false)} />
+      ) : (
+        <span className="shelf-logo shelf-letter">{entry.iconText}</span>
+      )}
+      <span className="shelf-name">{entry.name}</span>
+    </button>
   );
 }
 
@@ -151,11 +182,12 @@ function AgentCard({
         )}
         <div className="agent-title">
           <div className="agent-name">{entry.name}</div>
-          <div className="agent-vendor">{entry.vendor}</div>
+          <div className="agent-vendor">
+            {entry.vendor} · {entry.summary}
+          </div>
         </div>
         <Pill tone="neutral">{entry.protocol}</Pill>
       </header>
-      <p className="muted small">{entry.summary}</p>
       <ol className="agent-steps">
         {entry.steps.map((s, i) => (
           <li key={i}>{renderTemplate(s, vars)}</li>

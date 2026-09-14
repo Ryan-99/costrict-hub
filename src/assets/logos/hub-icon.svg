@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" fill="none">
+  <defs>
+    <linearGradient id="ring" x1="20" y1="80" x2="78" y2="18" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#094BFF"/>
+      <stop offset="1" stop-color="#0084FF"/>
+    </linearGradient>
+    <linearGradient id="node" x1="14" y1="56" x2="40" y2="86" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#7B5CFF"/>
+      <stop offset="1" stop-color="#2EE6C9"/>
+    </linearGradient>
+    <linearGradient id="sat" x1="66" y1="12" x2="84" y2="30" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#7B5CFF"/>
+      <stop offset="1" stop-color="#4A8DFF"/>
+    </linearGradient>
+  </defs>
+  <!-- 主环:同官方 C 环语系,开口朝左下,pathLength=360 虚线留 62° 口 -->
+  <circle cx="48" cy="48" r="30" stroke="url(#ring)" stroke-width="13"
+          pathLength="360" stroke-dasharray="298 62" stroke-dashoffset="-119"
+          stroke-linecap="round" fill="none"/>
+  <!-- hub 节点:卡在环口(左下),紫→青渐变 + 白芯,表示"额度经此分发" -->
+  <circle cx="24.5" cy="69" r="11.5" fill="url(#node)"/>
+  <circle cx="24.5" cy="69" r="4.6" fill="#ffffff"/>
+  <!-- 卫星节点:右上轨道点,呼应"接入的工具" -->
+  <circle cx="76.5" cy="21.5" r="5.2" fill="url(#sat)"/>
+  <circle cx="76.5" cy="21.5" r="2.1" fill="#ffffff"/>
+</svg>
