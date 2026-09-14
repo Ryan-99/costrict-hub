@@ -1,21 +1,27 @@
 //! router 二进制编排:进程管理 / 登录流程 / key 捕获 / 启动自愈。
-//! 逻辑参照 pi-gui costrict-service.ts(已验证的正则与健康检查节奏),重写为 tokio 版。
+//! 逻辑参照 pi-gui costrict-service.ts(已验证的正则与健康检查节奏),std 进程版。
+//!
+//! 重要:子进程输出捕获必须用 std::process::Command(spawn_blocking 里阻塞读)。
+//! tokio::process 的管道在本机对该 Go 二进制捕获为空(std 实测 193 字节 vs tokio 0),
+//! 登录 URL 与 key 的提取都依赖 stdout,不能走 tokio。
 //!
 //! router 的 start 是守护化命令(父进程退出后服务仍在),因此:
 //! - start 用 `--debug --log-file <hub>/router.log --pid-file <hub>/router.pid` 固定日志与 pid 位置
 //! - restart 一律 stop + start(带上我们的 flag),不依赖 router 自身 restart 的隐式行为
 
 use serde::Serialize;
+use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use std::time::Duration;
 use tauri::{AppHandle, Emitter, Manager};
-use tokio::io::AsyncReadExt;
 
 use crate::parse;
 use crate::paths;
 use crate::state::{self, AppState};
 
 pub const LOGIN_TIMEOUT_SECS: u64 = 300;
+
+const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
 /// 本地回环探测必须绕开系统代理(等价于 pi-gui 里"回环用原生 fetch"的坑)
 fn local_client() -> reqwest::Client {
@@ -30,44 +36,39 @@ pub fn local_endpoint(port: u16) -> String {
     format!("http://127.0.0.1:{port}/v1")
 }
 
-fn spawn_cmd(bin: &std::path::Path, args: &[&str]) -> tokio::process::Command {
-    let mut cmd = tokio::process::Command::new(bin);
+fn spawn_blocking_cmd(bin: &std::path::Path, args: &[String]) -> std::process::Command {
+    let mut cmd = std::process::Command::new(bin);
     cmd.args(args)
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped());
     #[cfg(windows)]
-    cmd.creation_flags(0x0800_0000); // CREATE_NO_WINDOW,避免控制台闪窗
+    {
+        use std::os::windows::process::CommandExt;
+        cmd.creation_flags(CREATE_NO_WINDOW); // 避免控制台闪窗
+    }
     cmd
 }
 
-/// 运行子进程到退出,合并收集 stdout+stderr
+/// 运行子进程到退出,合并收集 stdout+stderr。std 阻塞实现,放 spawn_blocking。
 pub async fn run_capture(bin: &std::path::Path, args: &[&str], timeout: Duration) -> Result<(i32, String), String> {
-    run_capture_inner(bin, args, timeout).await
-}
-
-async fn run_capture_inner(bin: &std::path::Path, args: &[&str], timeout: Duration) -> Result<(i32, String), String> {
-    let mut child = spawn_cmd(bin, args)
-        .spawn()
-        .map_err(|e| format!("启动子进程失败: {e}"))?;
-    let mut stdout = child.stdout.take().expect("stdout");
-    let mut stderr = child.stderr.take().expect("stderr");
-    let out_task = tokio::spawn(async move {
-        let mut buf = Vec::new();
-        let _ = stdout.read_to_end(&mut buf);
-        buf
+    let bin = bin.to_path_buf();
+    let args: Vec<String> = args.iter().map(|s| s.to_string()).collect();
+    let task = tokio::task::spawn_blocking(move || -> Result<(i32, String), String> {
+        let out = spawn_blocking_cmd(&bin, &args)
+            .output()
+            .map_err(|e| format!("启动子进程失败: {e}"))?;
+        let code = out.status.code().unwrap_or(-1);
+        let mut output = String::from_utf8_lossy(&out.stdout).into_owned();
+        output.push('\n');
+        output.push_str(&String::from_utf8_lossy(&out.stderr));
+        Ok((code, output))
     });
-    let err_task = tokio::spawn(async move {
-        let mut buf = Vec::new();
-        let _ = stderr.read_to_end(&mut buf);
-        buf
-    });
-    let wait = tokio::time::timeout(timeout, child.wait());
-    let status = wait.await.map_err(|_| "子进程执行超时".to_string())?.map_err(|e| e.to_string())?;
-    let mut output = String::from_utf8_lossy(&out_task.await.unwrap_or_default()).into_owned();
-    output.push('\n');
-    output.push_str(&String::from_utf8_lossy(&err_task.await.unwrap_or_default()));
-    Ok((status.code().unwrap_or(-1), output))
+    match tokio::time::timeout(timeout, task).await {
+        Err(_) => Err("子进程执行超时".into()),
+        Ok(Err(e)) => Err(e.to_string()),
+        Ok(Ok(r)) => r,
+    }
 }
 
 // ---------- router 全局配置(登录态) ----------
@@ -274,7 +275,8 @@ pub async fn restart_service(app: AppHandle) -> Result<StartOutcome, String> {
     start_service(app).await
 }
 
-/// 重新签发一次性本地 key(会使其他工具里配置的旧 key 失效,UI 需确认)
+/// 重新签发一次性本地 key(会使其他工具里配置的旧 key 失效,UI 需确认)。
+/// key reset 会把新 key 打印到 stdout(只此一次),随后必须重启服务才生效。
 pub async fn key_reset(app: AppHandle) -> Result<Option<String>, String> {
     let bin = ensure_binary(&app)?;
     let (_code, output) = run_capture(&bin, &["key", "reset"], Duration::from_secs(30)).await?;
@@ -313,8 +315,6 @@ fn emit_login(app: &AppHandle, stage: &str, message: Option<String>, url: Option
 }
 
 pub async fn login_flow(app: AppHandle, base_url: String) {
-    use std::sync::atomic::Ordering;
-
     if !parse::is_allowed_costrict_url(&base_url) {
         emit_login(
             &app,
@@ -332,110 +332,128 @@ pub async fn login_flow(app: AppHandle, base_url: String) {
             return;
         }
     };
-    {
-        let st = app.state::<AppState>();
-        st.login_cancelled.store(false, Ordering::SeqCst);
-    }
+    app.state::<AppState>().login_cancelled.store(false, Ordering::SeqCst);
     emit_login(&app, "starting", Some("正在生成登录链接…".into()), None, None);
 
-    let mut child = match spawn_cmd(&bin, &["login", "--base-url", &base_url]).spawn() {
+    let mut cmd = spawn_blocking_cmd(&bin, &["login".to_string(), "--base-url".to_string(), base_url.clone()]);
+    let mut child = match cmd.spawn() {
         Ok(c) => c,
         Err(e) => {
             emit_login(&app, "error", Some(format!("启动登录进程失败: {e}")), None, None);
             return;
         }
     };
-    let mut stdout = child.stdout.take().expect("login stdout");
-    let mut stderr = child.stderr.take().expect("login stderr");
-    // child 句柄放进共享槽,cancel_login 可从另一侧杀掉它
+    // stdout/stderr 交给阻塞读线程,child 留在槽位里供 cancel kill
+    let stdout = child.stdout.take().expect("login stdout");
+    let stderr = child.stderr.take().expect("login stderr");
+
     let slot = app.state::<AppState>().login_child.clone();
-    *slot.lock().await = Some(child);
+    {
+        let mut guard = slot.lock().unwrap();
+        *guard = Some(child);
+    }
 
     let shared: Arc<std::sync::Mutex<String>> = Arc::new(std::sync::Mutex::new(String::new()));
+    let (tx, mut rx) = tokio::sync::mpsc::channel::<Option<std::process::ExitStatus>>(1);
+
+    // 读线程:累积输出并提取登录链接(打开浏览器 + 事件)
     let shared_out = shared.clone();
     let app_out = app.clone();
-    let out_task = tokio::spawn(async move {
-        let mut buf = [0u8; 4096];
-        loop {
-            match stdout.read(&mut buf).await {
-                Ok(0) | Err(_) => break,
-                Ok(n) => {
-                    let chunk = String::from_utf8_lossy(&buf[..n]);
-                    let mut acc = shared_out.lock().unwrap();
-                    acc.push_str(&chunk);
-                    if let Some(url) = parse::extract_login_url(&acc) {
-                        let _ = tauri_plugin_opener::open_url(url.clone(), None::<&str>);
-                        emit_login(&app_out, "url", Some("已打开浏览器,请在页面完成 SSO 登录".into()), Some(&url), None);
-                    }
-                }
+    let t_out = std::thread::spawn(move || {
+        use std::io::BufRead;
+        let reader = std::io::BufReader::new(stdout);
+        for line in reader.lines().map_while(Result::ok) {
+            let mut acc = shared_out.lock().unwrap();
+            acc.push_str(&line);
+            acc.push('\n');
+            if let Some(url) = parse::extract_login_url(&acc) {
+                let _ = tauri_plugin_opener::open_url(url.clone(), None::<&str>);
+                emit_login(&app_out, "url", Some("已打开浏览器,请在页面完成 SSO 登录".into()), Some(&url), None);
             }
         }
     });
     let shared_err = shared.clone();
-    let err_task = tokio::spawn(async move {
-        let mut buf = [0u8; 4096];
-        loop {
-            match stderr.read(&mut buf).await {
-                Ok(0) | Err(_) => break,
-                Ok(n) => {
-                    shared_err.lock().unwrap().push_str(&String::from_utf8_lossy(&buf[..n]));
-                }
-            }
+    let t_err = std::thread::spawn(move || {
+        use std::io::BufRead;
+        let reader = std::io::BufReader::new(stderr);
+        for line in reader.lines().map_while(Result::ok) {
+            let mut acc = shared_err.lock().unwrap();
+            acc.push_str(&line);
+            acc.push('\n');
         }
     });
-
-    // 持有槽锁等待退出;超时或取消时杀进程
-    let wait_result = {
-        let mut guard = slot.lock().await;
-        match tokio::time::timeout(Duration::from_secs(LOGIN_TIMEOUT_SECS), async {
-            if let Some(c) = guard.as_mut() {
-                c.wait().await
-            } else {
-                unreachable!("login child 已放入槽位")
-            }
-        })
-        .await
-        {
-            Ok(Ok(status)) => Ok(Some(status)),
-            Ok(Err(e)) => Err(format!("登录进程异常退出: {e}")),
-            Err(_) => {
-                if let Some(c) = guard.as_mut() {
-                    let _ = c.kill().await;
+    // 等待线程:try_wait 轮询,child 留在槽位里,取消/超时时可从异步侧 kill
+    {
+        let slot = slot.clone();
+        std::thread::spawn(move || loop {
+            let status = {
+                let mut guard = slot.lock().unwrap();
+                match guard.as_mut() {
+                    Some(c) => c.try_wait().ok().flatten(),
+                    None => return, // 已被外部 take/kill 清理
                 }
-                Err("__timeout__".into())
+            };
+            if let Some(st) = status {
+                let _ = tx.blocking_send(Some(st));
+                return;
             }
-        }
-    };
-    // 释放槽位
-    *slot.lock().await = None;
-    let _ = out_task.await;
-    let _ = err_task.await;
+            std::thread::sleep(Duration::from_millis(150));
+        });
+    }
 
+    // 超时/取消轮询
+    let deadline = tokio::time::Instant::now() + Duration::from_secs(LOGIN_TIMEOUT_SECS);
+    let mut timed_out = false;
+    let mut status = None;
+    loop {
+        tokio::select! {
+            maybe = rx.recv() => {
+                status = maybe;
+                break;
+            }
+            _ = tokio::time::sleep(Duration::from_millis(200)) => {
+                let cancelled = app.state::<AppState>().login_cancelled.load(Ordering::SeqCst);
+                if cancelled {
+                    if let Some(c) = slot.lock().unwrap().as_mut() {
+                        let _ = c.kill();
+                    }
+                }
+                if cancelled {
+                    emit_login(&app, "cancelled", Some("已取消登录".into()), None, None);
+                    break;
+                }
+                if tokio::time::Instant::now() > deadline {
+                    timed_out = true;
+                    if let Some(c) = slot.lock().unwrap().as_mut() {
+                        let _ = c.kill();
+                    }
+                    break;
+                }
+            }
+        }
+    }
+    let _ = t_out.join();
+    let _ = t_err.join();
+    {
+        let mut guard = slot.lock().unwrap();
+        *guard = None;
+    }
+
+    if timed_out {
+        emit_login(&app, "error", Some("登录超时(5 分钟),已取消。可重试".into()), None, None);
+        return;
+    }
     let cancelled = app.state::<AppState>().login_cancelled.load(Ordering::SeqCst);
-    match wait_result {
-        Err(e) if e == "__timeout__" => {
-            emit_login(&app, "error", Some("登录超时(5 分钟),已取消。可重试".into()), None, None);
-            return;
-        }
-        Err(e) => {
-            emit_login(&app, "error", Some(e), None, None);
-            return;
-        }
-        Ok(None) => {
-            emit_login(&app, "error", Some("登录进程意外退出".into()), None, None);
-            return;
-        }
-        Ok(Some(status)) => {
-            if cancelled {
-                emit_login(&app, "cancelled", Some("已取消登录".into()), None, None);
-                return;
-            }
-            if !status.success() {
-                let output = shared.lock().unwrap().clone();
-                emit_login(&app, "error", Some(format!("登录未完成。输出:\n{output}")), None, None);
-                return;
-            }
-        }
+    if cancelled {
+        // cancelled 分支已发事件
+        emit_status(&app);
+        return;
+    }
+    let success = status.and_then(|s| s).map(|s| s.success()).unwrap_or(false);
+    if !success {
+        let output = shared.lock().unwrap().clone();
+        emit_login(&app, "error", Some(format!("登录未完成。输出:\n{output}")), None, None);
+        return;
     }
 
     emit_login(&app, "starting-service", Some("登录成功,正在启动本地服务…".into()), None, None);
@@ -461,13 +479,7 @@ pub async fn login_flow(app: AppHandle, base_url: String) {
 }
 
 pub async fn cancel_login(app: AppHandle) {
-    use std::sync::atomic::Ordering;
     app.state::<AppState>().login_cancelled.store(true, Ordering::SeqCst);
-    let slot = app.state::<AppState>().login_child.clone();
-    let mut guard = slot.lock().await;
-    if let Some(child) = guard.as_mut() {
-        let _ = child.kill().await;
-    }
 }
 
 // ---------- 启动自愈 ----------

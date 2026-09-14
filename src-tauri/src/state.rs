@@ -131,7 +131,7 @@ use std::sync::Arc;
 /// 登录子进程句柄(供 cancel) + 取消标记 + 防并发启动锁
 pub struct AppState {
     pub settings: Mutex<Settings>,
-    pub login_child: Arc<tokio::sync::Mutex<Option<tokio::process::Child>>>,
+    pub login_child: Arc<std::sync::Mutex<Option<std::process::Child>>>,
     pub login_cancelled: Arc<AtomicBool>,
     pub service_lock: Arc<tokio::sync::Mutex<()>>,
 }

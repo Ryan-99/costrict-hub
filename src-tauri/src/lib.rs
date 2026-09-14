@@ -25,7 +25,7 @@ pub fn run() {
         ))
         .manage(AppState {
             settings: std::sync::Mutex::new(state::Settings::default()),
-            login_child: std::sync::Arc::new(tokio::sync::Mutex::new(None)),
+            login_child: std::sync::Arc::new(std::sync::Mutex::new(None)),
             login_cancelled: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
             service_lock: std::sync::Arc::new(tokio::sync::Mutex::new(())),
         })
