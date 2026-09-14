@@ -144,39 +144,10 @@ pre {
   flex-shrink: 0;
   background: var(--sidebar);
   backdrop-filter: blur(20px);
-  border-right: 1px solid #ececf0;
+  border-radius: 0 18px 18px 0;
   display: flex;
   flex-direction: column;
-  padding: 10px 12px 14px;
-}
-
-.logo {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 4px 8px 16px;
-}
-
-.logo-img {
-  width: 34px;
-  height: 34px;
-  border-radius: 10px;
-  object-fit: contain;
-  background: linear-gradient(135deg, var(--grad-a), var(--grad-b));
-  padding: 4px;
-  box-sizing: content-box;
-}
-
-.logo-title {
-  font-weight: 700;
-  font-size: 14.5px;
-  letter-spacing: -0.2px;
-}
-
-.logo-sub {
-  font-size: 11px;
-  color: var(--text-2);
-  margin-top: 1px;
+  padding: 14px 12px 14px;
 }
 
 .sidebar nav {

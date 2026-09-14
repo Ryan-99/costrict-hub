@@ -139,9 +139,6 @@ function HeroCard({ status, onChanged }: { status: StatusInfo; onChanged: () => 
       {panelOpen && (
         <div className="hero-panel">
           <div className="hero-panel-inner">
-            <p className="muted small">
-              登录即认证 CoStrict 账号(深信服 SSO):额度通过本地接口开放给任意 AI 工具。支持企业内网地址,仅信任 *.sangfor.com。
-            </p>
             <div className="form-row">
               <LoginFields defaultUrl={status.configuredBaseUrl} disabled={busy} onStart={startLogin} busy={busy} onCancel={() => api.cancelLogin()} />
             </div>
@@ -151,7 +148,6 @@ function HeroCard({ status, onChanged }: { status: StatusInfo; onChanged: () => 
                 <span>{message ?? "正在生成登录链接…"}</span>
               </div>
             )}
-            {stage === "url" && <p className="hint">若浏览器未自动打开,请手动访问登录链接。</p>}
             {error && <p className="error-text">{error}</p>}
             {stage === "done" && (
               <p className="hint">
@@ -265,7 +261,6 @@ function AccessCard({
     <section className="card">
       <header className="card-head">
         <h3>本地接入</h3>
-        <span className="muted small">三要素填进任意 AI 工具即可共享额度;更多工具见「接入」页</span>
       </header>
       <div className="trio">
         <div className="trio-item">
@@ -318,7 +313,7 @@ function AccessCard({
       </div>
       {status.keyFromFallback && <p className="hint">⚠ 当前 key 以文件形式保存在数据目录(系统凭据库不可用)。</p>}
       <div className="trio-foot">
-        <span className="muted small">key 只在服务首次启动展示一次;丢失可重签,但旧 key 立即失效。</span>
+        <span className="flex-1" />
         <button className="link-btn danger-link" disabled={!key} onClick={() => setConfirmReset(true)}>
           重签 Key(key reset)
         </button>
@@ -397,10 +392,6 @@ function QuotaCard({ quota, loggedIn, upstream }: { quota: QuotaSnapshot | null;
               </button>
             </p>
           )}
-          <p className="muted small">
-            每 15 秒自动刷新
-            {quota && ` · 更新于 ${new Date(quota.fetchedAt).toLocaleTimeString("zh-CN")}`}
-          </p>
         </>
       ) : (
         <Empty text="等待首次刷新…" />
@@ -451,7 +442,6 @@ function TodayCard() {
       ) : (
         <Empty text="今天还没有调用" />
       )}
-      <p className="muted small">数据来自 router --debug 日志,覆盖 Hub 拉起服务期间所有工具的调用。</p>
     </Card>
   );
 }

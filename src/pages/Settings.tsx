@@ -92,7 +92,6 @@ export default function SettingsPage({
             保存
           </Btn>
         </div>
-        <p className="hint">仅支持 *.sangfor.com 或本机地址;企业内网私有化部署时修改。改地址后需重新认证。</p>
         <div className="form-row">
           <label>本地端口</label>
           <input type="number" value={settings.port} onChange={(e) => setSettings({ ...settings, port: Number(e.target.value) || 0 })} />
@@ -100,26 +99,22 @@ export default function SettingsPage({
             保存
           </Btn>
         </div>
-        <p className="hint">修改端口后需重启服务,并更新各工具里的端点配置。</p>
       </Card>
 
       <Card title="启动与常驻">
         <ToggleRow
           label="开机自动启动 Hub"
-          hint="跟随系统登录启动(窗口隐藏在托盘)"
           checked={autostart === true}
           disabled={autostart === null}
           onChange={toggleAutostart}
         />
         <ToggleRow
           label="启动时自动拉起服务"
-          hint="已登录但服务未运行时,Hub 启动后自动 start"
           checked={settings.autostartService}
           onChange={(v) => save({ autostartService: v }, "已保存")}
         />
         <ToggleRow
           label="退出 Hub 时停止服务"
-          hint="关闭托盘退出时同时 stop costrict-router"
           checked={settings.stopServiceOnExit}
           onChange={(v) => save({ stopServiceOnExit: v }, "已保存")}
         />
@@ -168,27 +163,19 @@ export default function SettingsPage({
             router 配置
           </Btn>
         </div>
-        <p className="hint">登录态由 costrict-router 自己管理(与 pi-gui 等工具共享同一份),Hub 不保存上游 token。</p>
       </Card>
 
-      <Card title="关于">
-        <p className="muted">
-          CoStrict Hub v0.1.0 · 托管 <code>mokeyjay/costrict-router</code> v0.3.2 · 额度数据来自 CoStrict 官方接口
-        </p>
-      </Card>
     </div>
   );
 }
 
 function ToggleRow({
   label,
-  hint,
   checked,
   onChange,
   disabled,
 }: {
   label: string;
-  hint?: string;
   checked: boolean;
   onChange: (v: boolean) => void;
   disabled?: boolean;
@@ -197,7 +184,6 @@ function ToggleRow({
     <label className="toggle-row">
       <div>
         <div className="toggle-label">{label}</div>
-        {hint && <div className="toggle-hint">{hint}</div>}
       </div>
       <button
         className={`switch ${checked ? "on" : ""}`}

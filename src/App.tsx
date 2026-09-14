@@ -62,7 +62,6 @@ export default function App() {
       <header className="titlebar" data-tauri-drag-region>
         <img className="titlebar-icon" src={hubIcon} alt="" aria-hidden />
         <span className="titlebar-title">CoStrict Hub</span>
-        <span className="titlebar-badge">{status?.serviceRunning ? "服务运行中" : "服务未运行"}</span>
         <span className="flex-1" data-tauri-drag-region />
         <button className="win-btn" title="最小化" onClick={() => appWindow.minimize()}>
           <svg width="10" height="10" viewBox="0 0 10 10">
@@ -89,13 +88,6 @@ export default function App() {
       </header>
       <div className="app-body">
         <aside className="sidebar">
-          <div className="logo">
-            <img className="logo-img" src={hubIcon} alt="CoStrict Hub" />
-            <div>
-              <div className="logo-title">CoStrict Hub</div>
-              <div className="logo-sub">额度代理中枢</div>
-            </div>
-          </div>
           <nav>
             {NAV.map((n) => (
               <button key={n.id} className={`nav-item ${page === n.id ? "active" : ""}`} onClick={() => setPage(n.id)}>

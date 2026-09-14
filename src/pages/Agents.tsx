@@ -93,7 +93,6 @@ export default function AgentsPage({
             </div>
           );
         })}
-        <p className="hint">点 logo 查看对应工具的详细接入方法;片段已代入下方端点、Key 和默认模型,复制即用。</p>
       </Card>
 
       {/* 参数条 */}
@@ -182,9 +181,7 @@ function AgentCard({
         )}
         <div className="agent-title">
           <div className="agent-name">{entry.name}</div>
-          <div className="agent-vendor">
-            {entry.vendor} · {entry.summary}
-          </div>
+          <div className="agent-vendor">{entry.vendor}</div>
         </div>
         <Pill tone="neutral">{entry.protocol}</Pill>
       </header>
@@ -208,7 +205,6 @@ function AgentCard({
           {renderTemplate(n, vars)}
         </p>
       ))}
-      <p className="verified">{entry.verified}</p>
     </Card>
   );
 }
