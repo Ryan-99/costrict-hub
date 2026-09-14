@@ -3,8 +3,15 @@ import { api, onDownload } from "../lib/bridge";
 import type { BinaryInfo, Settings as SettingsT } from "../lib/types";
 import { Btn, Card, CopyRow, Empty } from "../components/ui";
 
-export default function SettingsPage({ onChanged }: { onChanged: () => void }) {
-  const [settings, setSettings] = useState<SettingsT | null>(null);
+export default function SettingsPage({
+  settings,
+  setSettings,
+  onChanged,
+}: {
+  settings: SettingsT | null;
+  setSettings: (s: SettingsT) => void;
+  onChanged: () => void;
+}) {
   const [saved, setSaved] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [binary, setBinary] = useState<BinaryInfo | null>(null);
@@ -12,7 +19,6 @@ export default function SettingsPage({ onChanged }: { onChanged: () => void }) {
   const [autostart, setAutostart] = useState<boolean | null>(null);
 
   useEffect(() => {
-    api.getSettings().then(setSettings);
     api.getBinaryInfo().then(setBinary);
   }, []);
 
@@ -36,10 +42,9 @@ export default function SettingsPage({ onChanged }: { onChanged: () => void }) {
     if (!settings) return;
     setError(null);
     setSaved(null);
-    const next = { ...settings, ...patch };
     try {
-      const savedSettings = await api.saveSettings(next);
-      setSettings(savedSettings);
+      const next = await api.saveSettings({ ...settings, ...patch });
+      setSettings(next);
       setSaved(okText);
       onChanged();
     } catch (e) {
@@ -83,19 +88,15 @@ export default function SettingsPage({ onChanged }: { onChanged: () => void }) {
             onChange={(e) => setSettings({ ...settings, upstreamBaseUrl: e.target.value })}
             placeholder="https://zgsm.sangfor.com"
           />
-          <Btn variant="ghost" onClick={() => save({ upstreamBaseUrl: settings.upstreamBaseUrl.trim() }, "服务地址已保存")}>
+          <Btn variant="secondary" onClick={() => save({ upstreamBaseUrl: settings.upstreamBaseUrl.trim() }, "服务地址已保存")}>
             保存
           </Btn>
         </div>
-        <p className="hint">仅支持 *.sangfor.com 或本机地址;企业内网私有化部署时修改。改地址后需重新登录。</p>
+        <p className="hint">仅支持 *.sangfor.com 或本机地址;企业内网私有化部署时修改。改地址后需重新认证。</p>
         <div className="form-row">
           <label>本地端口</label>
-          <input
-            type="number"
-            value={settings.port}
-            onChange={(e) => setSettings({ ...settings, port: Number(e.target.value) || 0 })}
-          />
-          <Btn variant="ghost" onClick={() => save({ port: settings.port }, "端口已保存")}>
+          <input type="number" value={settings.port} onChange={(e) => setSettings({ ...settings, port: Number(e.target.value) || 0 })} />
+          <Btn variant="secondary" onClick={() => save({ port: settings.port }, "端口已保存")}>
             保存
           </Btn>
         </div>
@@ -114,19 +115,13 @@ export default function SettingsPage({ onChanged }: { onChanged: () => void }) {
           label="启动时自动拉起服务"
           hint="已登录但服务未运行时,Hub 启动后自动 start"
           checked={settings.autostartService}
-          onChange={(v) => {
-            setSettings({ ...settings, autostartService: v });
-            save({ autostartService: v }, "已保存");
-          }}
+          onChange={(v) => save({ autostartService: v }, "已保存")}
         />
         <ToggleRow
           label="退出 Hub 时停止服务"
           hint="关闭托盘退出时同时 stop costrict-router"
           checked={settings.stopServiceOnExit}
-          onChange={(v) => {
-            setSettings({ ...settings, stopServiceOnExit: v });
-            save({ stopServiceOnExit: v }, "已保存");
-          }}
+          onChange={(v) => save({ stopServiceOnExit: v }, "已保存")}
         />
       </Card>
 
@@ -173,9 +168,7 @@ export default function SettingsPage({ onChanged }: { onChanged: () => void }) {
             router 配置
           </Btn>
         </div>
-        <p className="hint">
-          登录态由 costrict-router 自己管理(与 pi-gui 等工具共享同一份),Hub 不保存上游 token。
-        </p>
+        <p className="hint">登录态由 costrict-router 自己管理(与 pi-gui 等工具共享同一份),Hub 不保存上游 token。</p>
       </Card>
 
       <Card title="关于">

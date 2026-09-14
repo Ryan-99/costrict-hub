@@ -101,6 +101,14 @@ pub async fn save_settings(app: AppHandle, settings: Settings) -> Result<Setting
     if settings.port < 1024 {
         return Err("端口需在 1024-65535 之间".into());
     }
+    if settings.default_model.len() > 128
+        || !settings
+            .default_model
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || "._-:/ ".contains(c))
+    {
+        return Err("模型 ID 含非法字符".into());
+    }
     state::save_settings(&app, &settings)?;
     {
         let st = app.state::<AppState>();

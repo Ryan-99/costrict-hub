@@ -28,7 +28,7 @@ export function Btn({
 }: {
   children: ReactNode;
   onClick?: () => void;
-  variant?: "default" | "primary" | "danger" | "ghost";
+  variant?: "default" | "primary" | "secondary" | "danger" | "danger-ghost" | "ghost";
   disabled?: boolean;
   title?: string;
 }) {

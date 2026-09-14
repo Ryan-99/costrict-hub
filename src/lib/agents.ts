@@ -1,6 +1,15 @@
 // 接入页数据层:数据驱动条目,新增工具只需加一个 AgentEntry。
 // 模板变量:{origin} = http://127.0.0.1:14567 | {endpoint} = {origin}/v1 | {key} = sk-costrict-… | {model} = 所选模型 ID
 
+import workbuddyLogo from "../assets/logos/workbuddy.svg";
+import codebuddyLogo from "../assets/logos/codebuddy.svg";
+import traeLogo from "../assets/logos/trae.png";
+import zcodeLogo from "../assets/logos/zcode.png";
+import qwenLogo from "../assets/logos/qwen.png";
+import claudeLogo from "../assets/logos/claude.png";
+import openaiLogo from "../assets/logos/openai.png";
+import clineLogo from "../assets/logos/cline.png";
+
 export interface AgentSnippet {
   label: string;
   lang: "env" | "json" | "toml" | "text" | "cmd";
@@ -13,6 +22,8 @@ export interface AgentEntry {
   vendor: string;
   group: "domestic" | "international" | "generic";
   protocol: "OpenAI 兼容" | "Anthropic 兼容" | "OpenAI / Anthropic";
+  /** 工具 logo 资源;缺省用首字母徽标 */
+  logo?: string;
   iconText: string;
   summary: string;
   steps: string[];
@@ -32,6 +43,7 @@ export const AGENT_ENTRIES: AgentEntry[] = [
     vendor: "腾讯 CodeBuddy 生态",
     group: "domestic",
     protocol: "OpenAI 兼容",
+    logo: workbuddyLogo,
     iconText: "WB",
     summary: "AI Agent 办公工具,图形界面接入自定义模型",
     steps: [
@@ -57,6 +69,7 @@ export const AGENT_ENTRIES: AgentEntry[] = [
     vendor: "腾讯",
     group: "domestic",
     protocol: "OpenAI 兼容",
+    logo: codebuddyLogo,
     iconText: "CB",
     summary: "腾讯 AI 编程助手(IDE / 插件),与 WorkBuddy 同源的自定义模型机制",
     steps: [
@@ -78,6 +91,7 @@ export const AGENT_ENTRIES: AgentEntry[] = [
     vendor: "字节跳动",
     group: "domestic",
     protocol: "OpenAI / Anthropic",
+    logo: traeLogo,
     iconText: "T",
     summary: "AI 原生 IDE,支持自定义模型服务",
     steps: [
@@ -103,6 +117,7 @@ export const AGENT_ENTRIES: AgentEntry[] = [
     vendor: "智谱",
     group: "domestic",
     protocol: "OpenAI / Anthropic",
+    logo: zcodeLogo,
     iconText: "Z",
     summary: "GLM 生态 AI 编程客户端,支持自定义 provider",
     steps: [
@@ -147,6 +162,7 @@ export const AGENT_ENTRIES: AgentEntry[] = [
     vendor: "阿里",
     group: "domestic",
     protocol: "OpenAI 兼容",
+    logo: qwenLogo,
     iconText: "Q",
     summary: "命令行编程 Agent,环境变量接入 OpenAI 兼容端点",
     steps: [
@@ -172,6 +188,7 @@ OPENAI_MODEL={model}`,
     vendor: "Anthropic",
     group: "international",
     protocol: "Anthropic 兼容",
+    logo: claudeLogo,
     iconText: "CC",
     summary: "命令行编程 Agent,走 Anthropic 协议",
     steps: [
@@ -206,6 +223,7 @@ claude`,
     vendor: "OpenAI",
     group: "international",
     protocol: "OpenAI 兼容",
+    logo: openaiLogo,
     iconText: "CX",
     summary: "命令行编程 Agent,支持自定义 model provider",
     steps: [
@@ -237,6 +255,7 @@ env_key = "COSTRICT_API_KEY"`,
     vendor: "VSCode 插件",
     group: "international",
     protocol: "OpenAI 兼容",
+    logo: clineLogo,
     iconText: "CR",
     summary: "VSCode 编程 Agent 插件,表单式配置",
     steps: [
@@ -258,6 +277,7 @@ env_key = "COSTRICT_API_KEY"`,
     vendor: "通用",
     group: "generic",
     protocol: "OpenAI 兼容",
+    logo: openaiLogo,
     iconText: "OA",
     summary: "三要素接入:端点 + Key + 模型名",
     steps: ["把三要素填进任意支持自定义 OpenAI 端点的工具即可"],
@@ -275,6 +295,7 @@ env_key = "COSTRICT_API_KEY"`,
     vendor: "通用",
     group: "generic",
     protocol: "Anthropic 兼容",
+    logo: claudeLogo,
     iconText: "AA",
     summary: "router 本地转换 Anthropic 协议",
     steps: ["base URL 指向本地服务,鉴权走 x-api-key 或 Bearer"],

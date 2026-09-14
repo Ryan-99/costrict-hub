@@ -74,6 +74,7 @@ export interface UsageReport {
 export interface Settings {
   upstreamBaseUrl: string;
   port: number;
+  defaultModel: string;
   autostartService: boolean;
   stopServiceOnExit: boolean;
 }

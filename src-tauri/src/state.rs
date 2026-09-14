@@ -19,6 +19,8 @@ pub struct Settings {
     pub upstream_base_url: String,
     /// 本地代理端口
     pub port: u16,
+    /// 默认模型(接入页/仪表盘共用,供 agent 配置片段代入)
+    pub default_model: String,
     /// 应用启动时自动拉起 router 服务(已登录但服务未跑时)
     pub autostart_service: bool,
     /// 退出应用时停止 router 服务
@@ -30,6 +32,7 @@ impl Default for Settings {
         Self {
             upstream_base_url: DEFAULT_BASE_URL.to_string(),
             port: DEFAULT_PORT,
+            default_model: "Auto".to_string(),
             autostart_service: true,
             stop_service_on_exit: true,
         }

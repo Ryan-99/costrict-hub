@@ -1,15 +1,20 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { api, onLoginEvent } from "../lib/bridge";
-import type { LoginEvent, QuotaSnapshot, StatusInfo } from "../lib/types";
-import { Btn, Card, ConfirmBar, CopyRow, Empty, Pill, fmtNum } from "../components/ui";
+import type { LoginEvent, QuotaSnapshot, Settings, StatusInfo } from "../lib/types";
+import { Btn, ConfirmBar, Empty, Pill, fmtNum } from "../components/ui";
+import costrictIcon from "../assets/logos/costrict-icon.png";
 
 export default function Dashboard({
   status,
   quota,
+  settings,
+  onSettingsChanged,
   onChanged,
 }: {
   status: StatusInfo | null;
   quota: QuotaSnapshot | null;
+  settings: Settings | null;
+  onSettingsChanged: (patch: Partial<Settings>) => Promise<unknown>;
   onChanged: () => void;
 }) {
   if (!status) return <Empty text="加载中…" />;
@@ -18,35 +23,32 @@ export default function Dashboard({
       <div className="page-head">
         <h2>仪表盘</h2>
         <Pill tone={status.serviceRunning ? "ok" : status.loggedIn ? "warn" : "neutral"}>
-          {status.serviceRunning ? "服务运行中" : status.loggedIn ? "服务未运行" : "未登录"}
+          {status.serviceRunning ? "服务运行中" : status.loggedIn ? "服务未运行" : "未认证"}
         </Pill>
       </div>
 
-      {!status.loggedIn && <LoginCard status={status} onChanged={onChanged} />}
+      <HeroCard status={status} onChanged={onChanged} />
+
+      <AccessCard status={status} settings={settings} onSettingsChanged={onSettingsChanged} onChanged={onChanged} />
 
       <div className="grid-2">
-        <ServiceCard status={status} onChanged={onChanged} />
         <QuotaCard quota={quota} loggedIn={status.loggedIn} upstream={status.upstreamBaseUrl} />
+        <TodayCard />
       </div>
-
-      {status.loggedIn && (
-        <div className="grid-2">
-          <KeyCard status={status} onChanged={onChanged} />
-          <TodayCard />
-        </div>
-      )}
     </div>
   );
 }
 
-/* ---------------- 登录 ---------------- */
+/* ---------------- 认证 + 服务(hero) ---------------- */
 
-function LoginCard({ status, onChanged }: { status: StatusInfo; onChanged: () => void }) {
-  const [baseUrl, setBaseUrl] = useState(status.configuredBaseUrl || "https://zgsm.sangfor.com");
+function HeroCard({ status, onChanged }: { status: StatusInfo; onChanged: () => void }) {
+  const [panelOpen, setPanelOpen] = useState(!status.loggedIn);
   const [stage, setStage] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [svcBusy, setSvcBusy] = useState(false);
+  const [svcMsg, setSvcMsg] = useState<string | null>(null);
   const unRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
@@ -63,119 +65,165 @@ function LoginCard({ status, onChanged }: { status: StatusInfo; onChanged: () =>
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const start = async () => {
+  const startLogin = async (baseUrl: string) => {
     setError(null);
     setBusy(true);
     setStage("starting");
     try {
-      await api.startLogin(baseUrl.trim());
+      await api.startLogin(baseUrl);
     } catch (e) {
       setBusy(false);
       setError(String(e));
     }
   };
 
-  return (
-    <Card className="login-card" title="接入 CoStrict">
-      <p className="muted">
-        使用深信服 SSO 登录后,CoStrict 账号的 Credit 额度即可通过本地接口供任意 AI 工具使用。
-      </p>
-      <div className="form-row">
-        <label>服务地址</label>
-        <input value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} placeholder="https://zgsm.sangfor.com" disabled={busy} />
-      </div>
-      {busy ? (
-        <div className="login-progress">
-          <span className="spinner" />
-          <span>{message ?? "正在生成登录链接…"}</span>
-          <Btn variant="ghost" onClick={() => api.cancelLogin()}>
-            取消
-          </Btn>
-        </div>
-      ) : (
-        <div className="row-actions">
-          <Btn variant="primary" onClick={start}>
-            打开浏览器登录
-          </Btn>
-        </div>
-      )}
-      {stage === "url" && <p className="hint">若浏览器未自动打开,请手动访问登录链接(见系统通知)。</p>}
-      {error && <p className="error-text">{error}</p>}
-    </Card>
-  );
-}
-
-/* ---------------- 服务 ---------------- */
-
-function ServiceCard({ status, onChanged }: { status: StatusInfo; onChanged: () => void }) {
-  const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState<string | null>(null);
-
-  const run = async (fn: () => Promise<unknown>, okText: string) => {
-    setBusy(true);
-    setMsg(null);
+  const runService = async (fn: () => Promise<unknown>, okText: string) => {
+    setSvcBusy(true);
+    setSvcMsg(null);
     try {
       await fn();
-      setMsg(okText);
+      setSvcMsg(okText);
       onChanged();
     } catch (e) {
-      setMsg(String(e));
+      setSvcMsg(String(e));
     } finally {
-      setBusy(false);
+      setSvcBusy(false);
     }
   };
 
   return (
-    <Card
-      title="本地服务"
-      extra={<Pill tone={status.serviceRunning ? "ok" : "neutral"}>{status.serviceRunning ? "运行中" : "已停止"}</Pill>}
-    >
-      <div className="kv-list">
-        <div className="kv">
-          <span>本地端点</span>
-          <code>{status.localEndpoint}</code>
+    <section className="hero-card">
+      <div className="hero-row">
+        <img className="hero-logo" src={costrictIcon} alt="CoStrict" />
+        <div className="hero-main">
+          <div className="hero-title-row">
+            <span className="hero-title">CoStrict 账号</span>
+            {status.loggedIn ? <Pill tone="ok">✓ 已认证</Pill> : <Pill tone="warn">未认证</Pill>}
+          </div>
+          <div className="hero-sub">
+            CoStrict
+            <span className="hero-dot">·</span>
+            {status.upstreamBaseUrl ?? "尚未登录"}
+            <span className="hero-dot">·</span>
+            router {status.binaryVersion ?? "未安装"}
+            <span className="hero-dot">·</span>
+            {status.serviceRunning ? "服务运行中" : "服务未运行"}
+          </div>
         </div>
-        <div className="kv">
-          <span>上游地址</span>
-          <code>{status.upstreamBaseUrl ?? "未登录"}</code>
+        <div className="hero-actions">
+          {status.loggedIn ? (
+            <Btn variant="ghost" onClick={() => setPanelOpen((o) => !o)}>
+              重新认证
+            </Btn>
+          ) : (
+            <Btn variant="primary" onClick={() => setPanelOpen(true)}>
+              登录 CoStrict
+            </Btn>
+          )}
+          {!status.serviceRunning ? (
+            <Btn
+              variant="secondary"
+              disabled={svcBusy || !status.loggedIn || !status.binaryPresent}
+              onClick={() => runService(() => api.startService(), "服务已启动")}
+            >
+              启动服务
+            </Btn>
+          ) : (
+            <Btn variant="danger-ghost" disabled={svcBusy} onClick={() => runService(() => api.stopService(), "服务已停止")}>
+              停止服务
+            </Btn>
+          )}
         </div>
-        <div className="kv">
-          <span>router 版本</span>
-          <code>{status.binaryVersion ?? (status.binaryPresent ? "未知" : "未安装")}</code>
-        </div>
-        {status.serviceExternal && (
-          <p className="hint">服务由其他程序拉起(如 pi-gui),停止/重启会一并接管。</p>
-        )}
       </div>
-      <div className="row-actions">
-        {!status.serviceRunning ? (
-          <Btn
-            variant="primary"
-            disabled={busy || !status.loggedIn || !status.binaryPresent}
-            onClick={() => run(() => api.startService(), "服务已启动")}
-          >
-            启动服务
-          </Btn>
-        ) : (
-          <Btn variant="danger" disabled={busy} onClick={() => run(() => api.stopService(), "服务已停止")}>
-            停止服务
-          </Btn>
-        )}
-        <Btn disabled={busy || !status.serviceRunning} onClick={() => run(() => api.restartService(), "服务已重启")}>
-          重启
-        </Btn>
-      </div>
+
+      {panelOpen && (
+        <div className="hero-panel">
+          <div className="hero-panel-inner">
+            <p className="muted small">
+              登录即认证 CoStrict 账号(深信服 SSO):额度通过本地接口开放给任意 AI 工具。支持企业内网地址,仅信任 *.sangfor.com。
+            </p>
+            <div className="form-row">
+              <LoginFields defaultUrl={status.configuredBaseUrl} disabled={busy} onStart={startLogin} busy={busy} onCancel={() => api.cancelLogin()} />
+            </div>
+            {busy && (
+              <div className="login-progress">
+                <span className="spinner" />
+                <span>{message ?? "正在生成登录链接…"}</span>
+              </div>
+            )}
+            {stage === "url" && <p className="hint">若浏览器未自动打开,请手动访问登录链接。</p>}
+            {error && <p className="error-text">{error}</p>}
+            {stage === "done" && (
+              <p className="hint">
+                认证完成。
+                <button
+                  className="link-btn"
+                  onClick={() => {
+                    setPanelOpen(false);
+                    setStage(null);
+                  }}
+                >
+                  收起
+                </button>
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+      {svcMsg && <p className="hint">{svcMsg}</p>}
       {!status.binaryPresent && <p className="error-text">未找到 costrict-router 二进制,请到「设置」下载安装。</p>}
-      {!status.loggedIn && <p className="hint">先登录 CoStrict 再启动服务。</p>}
-      {msg && <p className="hint">{msg}</p>}
-    </Card>
+    </section>
   );
 }
 
-/* ---------------- Key ---------------- */
+function LoginFields({
+  defaultUrl,
+  disabled,
+  busy,
+  onStart,
+  onCancel,
+}: {
+  defaultUrl: string;
+  disabled: boolean;
+  busy: boolean;
+  onStart: (url: string) => void;
+  onCancel: () => void;
+}) {
+  const [baseUrl, setBaseUrl] = useState(defaultUrl || "https://zgsm.sangfor.com");
+  return (
+    <>
+      <label>服务地址</label>
+      <input value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} placeholder="https://zgsm.sangfor.com" disabled={disabled} />
+      {!busy ? (
+        <Btn variant="primary" onClick={() => onStart(baseUrl.trim())}>
+          打开浏览器登录
+        </Btn>
+      ) : (
+        <Btn variant="ghost" onClick={onCancel}>
+          取消
+        </Btn>
+      )}
+    </>
+  );
+}
 
-function KeyCard({ status, onChanged }: { status: StatusInfo; onChanged: () => void }) {
+/* ---------------- 本地接入(三要素) ---------------- */
+
+function AccessCard({
+  status,
+  settings,
+  onSettingsChanged,
+  onChanged,
+}: {
+  status: StatusInfo;
+  settings: Settings | null;
+  onSettingsChanged: (patch: Partial<Settings>) => Promise<unknown>;
+  onChanged: () => void;
+}) {
   const [key, setKey] = useState<string | null>(null);
+  const [keyRevealed, setKeyRevealed] = useState(false);
+  const [copied, setCopied] = useState<string | null>(null);
+  const [models, setModels] = useState<string[]>([]);
   const [confirmReset, setConfirmReset] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
 
@@ -183,7 +231,22 @@ function KeyCard({ status, onChanged }: { status: StatusInfo; onChanged: () => v
     api.getKey().then((k) => setKey(k.key));
   }, [status.keyPresent]);
 
-  const reset = async () => {
+  useEffect(() => {
+    api
+      .getModels()
+      .then((ms) => setModels(ms.map((m) => m.id)))
+      .catch(() => {});
+  }, []);
+
+  const copy = async (label: string, value: string) => {
+    const { copyText } = await import("../lib/bridge");
+    if (await copyText(value)) {
+      setCopied(label);
+      setTimeout(() => setCopied(null), 1200);
+    }
+  };
+
+  const resetKey = async () => {
     setConfirmReset(false);
     setMsg(null);
     try {
@@ -195,32 +258,80 @@ function KeyCard({ status, onChanged }: { status: StatusInfo; onChanged: () => v
     }
   };
 
+  const defaultModel = settings?.defaultModel || "Auto";
+  const modelValue = models.includes(defaultModel) ? defaultModel : models[0] ?? defaultModel;
+
   return (
-    <Card title="本地 API Key">
-      {key ? (
-        <CopyRow label="Key" value={key} mask />
-      ) : (
-        <p className="hint">尚未捕获本地 key。重新登录或 key reset 可签发。</p>
-      )}
-      <CopyRow label="端点" value={status.localEndpoint} />
-      {status.keyFromFallback && (
-        <p className="hint">⚠ 当前 key 以文件形式保存在数据目录(系统凭据库不可用)。</p>
-      )}
-      <div className="row-actions">
-        <Btn variant="danger" disabled={!key} onClick={() => setConfirmReset(true)}>
-          重签 Key(key reset)
-        </Btn>
+    <section className="card">
+      <header className="card-head">
+        <h3>本地接入</h3>
+        <span className="muted small">三要素填进任意 AI 工具即可共享额度;更多工具见「接入」页</span>
+      </header>
+      <div className="trio">
+        <div className="trio-item">
+          <span className="trio-label">接入地址</span>
+          <div className="trio-value">
+            <code title={status.localEndpoint}>{status.localEndpoint}</code>
+            <button className="chip-btn" onClick={() => copy("endpoint", status.localEndpoint)}>
+              {copied === "endpoint" ? "已复制" : "复制"}
+            </button>
+          </div>
+        </div>
+        <div className="trio-item">
+          <span className="trio-label">API Key</span>
+          <div className="trio-value">
+            <code title={key ?? undefined}>
+              {key ? (keyRevealed ? key : key.slice(0, 10) + "•".repeat(12)) : "登录后签发,详见下方说明"}
+            </code>
+            {key && (
+              <>
+                <button className="chip-btn" onClick={() => setKeyRevealed((r) => !r)}>
+                  {keyRevealed ? "隐藏" : "显示"}
+                </button>
+                <button className="chip-btn" onClick={() => copy("key", key)}>
+                  {copied === "key" ? "已复制" : "复制"}
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+        <div className="trio-item">
+          <span className="trio-label">默认模型</span>
+          <div className="trio-value">
+            {models.length > 0 ? (
+              <select
+                className="trio-select"
+                value={modelValue}
+                onChange={(e) => onSettingsChanged({ defaultModel: e.target.value }).catch(() => {})}
+              >
+                {models.map((m) => (
+                  <option key={m} value={m}>
+                    {m}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <code>{defaultModel}</code>
+            )}
+          </div>
+        </div>
       </div>
-      <p className="hint">key 只在 router 首次启动时展示一次;重签后旧 key 立即失效,所有已配置的工具都要更新。</p>
+      {status.keyFromFallback && <p className="hint">⚠ 当前 key 以文件形式保存在数据目录(系统凭据库不可用)。</p>}
+      <div className="trio-foot">
+        <span className="muted small">key 只在服务首次启动展示一次;丢失可重签,但旧 key 立即失效。</span>
+        <button className="link-btn danger-link" disabled={!key} onClick={() => setConfirmReset(true)}>
+          重签 Key(key reset)
+        </button>
+      </div>
       {msg && <p className="hint">{msg}</p>}
       <ConfirmBar
         show={confirmReset}
-        message="重签 Key 会让当前 key 立即失效,已按旧 key 配置的工具(Cline、Trae、Claude Code 等)都会 401,需要逐个更新。确定继续?"
+        message="重签 Key 会让当前 key 立即失效,已按旧 key 配置的工具(Trae、Cline、Claude Code 等)都会 401,需要逐个更新。确定继续?"
         confirmText="重签"
-        onConfirm={reset}
+        onConfirm={resetKey}
         onCancel={() => setConfirmReset(false)}
       />
-    </Card>
+    </section>
   );
 }
 
@@ -231,7 +342,7 @@ function QuotaCard({ quota, loggedIn, upstream }: { quota: QuotaSnapshot | null;
   if (!loggedIn) {
     return (
       <Card title="Credit 额度">
-        <Empty text="登录后展示额度" />
+        <Empty text="认证后展示额度" />
       </Card>
     );
   }
@@ -247,11 +358,15 @@ function QuotaCard({ quota, loggedIn, upstream }: { quota: QuotaSnapshot | null;
     <Card
       title="Credit 额度"
       extra={
-        <Btn variant="ghost" disabled={refreshing} onClick={async () => {
-          setRefreshing(true);
-          await api.getQuota().catch(() => {});
-          setRefreshing(false);
-        }}>
+        <Btn
+          variant="ghost"
+          disabled={refreshing}
+          onClick={async () => {
+            setRefreshing(true);
+            await api.getQuota().catch(() => {});
+            setRefreshing(false);
+          }}
+        >
           刷新
         </Btn>
       }
@@ -291,6 +406,18 @@ function QuotaCard({ quota, loggedIn, upstream }: { quota: QuotaSnapshot | null;
         <Empty text="等待首次刷新…" />
       )}
     </Card>
+  );
+}
+
+function Card({ title, extra, children }: { title: string; extra?: ReactNode; children: ReactNode }) {
+  return (
+    <section className="card">
+      <header className="card-head">
+        <h3>{title}</h3>
+        {extra}
+      </header>
+      {children}
+    </section>
   );
 }
 

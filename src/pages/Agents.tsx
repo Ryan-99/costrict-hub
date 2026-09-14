@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../lib/bridge";
 import { AGENT_ENTRIES, UNSUPPORTED_TOOLS, renderTemplate, type AgentEntry } from "../lib/agents";
-import type { StatusInfo } from "../lib/types";
+import type { Settings, StatusInfo } from "../lib/types";
 import { Btn, Card, CodeBlock, Empty, Pill } from "../components/ui";
 
 const GROUPS: { id: AgentEntry["group"]; label: string }[] = [
@@ -10,28 +10,49 @@ const GROUPS: { id: AgentEntry["group"]; label: string }[] = [
   { id: "generic", label: "通用接入" },
 ];
 
-export default function AgentsPage({ status }: { status: StatusInfo | null }) {
+export default function AgentsPage({
+  status,
+  settings,
+  onSettingsChanged,
+}: {
+  status: StatusInfo | null;
+  settings: Settings | null;
+  onSettingsChanged: (patch: Partial<Settings>) => Promise<unknown>;
+}) {
   const [models, setModels] = useState<string[]>([]);
-  const [model, setModel] = useState<string>("");
+  const [model, setModel] = useState<string>(settings?.defaultModel || "Auto");
   const [hideKey, setHideKey] = useState(false);
   const [key, setKey] = useState<string>("");
   const [catalogOut, setCatalogOut] = useState<string | null>(null);
+
+  // 跟随仪表盘改的默认模型
+  useEffect(() => {
+    if (settings?.defaultModel) setModel(settings.defaultModel);
+  }, [settings?.defaultModel]);
 
   const endpoint = status?.localEndpoint ?? "http://127.0.0.1:14567/v1";
   const origin = endpoint.replace(/\/v1$/, "");
 
   useEffect(() => {
-    api.getModels().then((ms) => {
-      setModels(ms.map((m) => m.id));
-      setModel((cur) => cur || ms[0]?.id || "");
-    }).catch(() => {});
+    api
+      .getModels()
+      .then((ms) => setModels(ms.map((m) => m.id)))
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
     api.getKey().then((k) => setKey(k.key ?? "")).catch(() => {});
   }, [status?.keyPresent]);
 
-  const vars = useMemo(() => ({ origin, key: hideKey ? "sk-costrict-****（点击复制时请先开启显示）" : key, model }), [origin, key, model, hideKey]);
+  const changeModel = (m: string) => {
+    setModel(m);
+    onSettingsChanged({ defaultModel: m }).catch(() => {});
+  };
+
+  const vars = useMemo(
+    () => ({ origin, key: hideKey ? "sk-costrict-****（复制时请先点显示）" : key, model }),
+    [origin, key, model, hideKey],
+  );
 
   const runCatalog = async () => {
     try {
@@ -51,9 +72,9 @@ export default function AgentsPage({ status }: { status: StatusInfo | null }) {
 
       <Card className="agents-bar">
         <div className="agents-bar-row">
-          <label className="agents-label">模型</label>
+          <label className="agents-label">默认模型</label>
           {models.length > 0 ? (
-            <select value={model} onChange={(e) => setModel(e.target.value)}>
+            <select value={models.includes(model) ? model : models[0]} onChange={(e) => changeModel(e.target.value)}>
               {models.map((m) => (
                 <option key={m} value={m}>
                   {m}
@@ -61,17 +82,17 @@ export default function AgentsPage({ status }: { status: StatusInfo | null }) {
               ))}
             </select>
           ) : (
-            <code className="muted">{model || "未获取到模型(可手填)"}</code>
+            <code className="muted">{model}(未获取到模型列表)</code>
           )}
-          <label className="agents-label">Key</label>
+          <span className="flex-1" />
+          <label className="agents-label">API Key</label>
           <code className="agents-key">{hideKey ? "••••••••" : key || "未获取"}</code>
           <button className="link-btn" onClick={() => setHideKey((h) => !h)}>
             {hideKey ? "显示" : "隐藏"}
           </button>
-          <span className="flex-1" />
           <code className="muted">{endpoint}</code>
         </div>
-        <p className="hint">下方片段已自动代入端点、Key 和所选模型,复制即用。</p>
+        <p className="hint">下方片段已自动代入端点、Key 和默认模型(与仪表盘联动),复制即用。</p>
       </Card>
 
       {GROUPS.map((g) => (
@@ -79,7 +100,12 @@ export default function AgentsPage({ status }: { status: StatusInfo | null }) {
           <h3 className="group-title">{g.label}</h3>
           <div className="agent-grid">
             {AGENT_ENTRIES.filter((e) => e.group === g.id).map((entry) => (
-              <AgentCard key={entry.id} entry={entry} vars={vars} onCatalog={entry.action === "codex-catalog" ? runCatalog : undefined} />
+              <AgentCard
+                key={entry.id}
+                entry={entry}
+                vars={vars}
+                onCatalog={entry.action === "codex-catalog" ? runCatalog : undefined}
+              />
             ))}
           </div>
         </div>
@@ -114,10 +140,15 @@ function AgentCard({
   vars: { origin: string; key: string; model: string };
   onCatalog?: () => void;
 }) {
+  const [logoOk, setLogoOk] = useState(true);
   return (
     <Card className="agent-card">
       <header className="agent-head">
-        <span className="agent-icon">{entry.iconText}</span>
+        {entry.logo && logoOk ? (
+          <img className="agent-logo" src={entry.logo} alt={entry.name} onError={() => setLogoOk(false)} />
+        ) : (
+          <span className="agent-icon">{entry.iconText}</span>
+        )}
         <div className="agent-title">
           <div className="agent-name">{entry.name}</div>
           <div className="agent-vendor">{entry.vendor}</div>
@@ -135,12 +166,14 @@ function AgentCard({
       ))}
       {onCatalog && (
         <div className="row-actions">
-          <Btn onClick={onCatalog}>自动写入 Codex 配置(codex-catalog)</Btn>
+          <Btn variant="secondary" onClick={onCatalog}>
+            自动写入 Codex 配置(codex-catalog)
+          </Btn>
         </div>
       )}
       {entry.notes?.map((n, i) => (
         <p key={i} className="hint">
-          {n}
+          {renderTemplate(n, vars)}
         </p>
       ))}
       <p className="verified">{entry.verified}</p>
