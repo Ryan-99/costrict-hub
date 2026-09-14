@@ -4,12 +4,6 @@ import { AGENT_ENTRIES, UNSUPPORTED_TOOLS, renderTemplate, type AgentEntry } fro
 import type { Settings, StatusInfo } from "../lib/types";
 import { Btn, Card, CodeBlock, Empty, Pill } from "../components/ui";
 
-const GROUPS: { id: AgentEntry["group"]; label: string }[] = [
-  { id: "domestic", label: "国产工具" },
-  { id: "international", label: "国际工具" },
-  { id: "generic", label: "通用" },
-];
-
 export default function AgentsPage({
   status,
   settings,
@@ -74,25 +68,16 @@ export default function AgentsPage({
 
       {/* logo 选择架:点图标切换下方详细配置 */}
       <Card className="shelf-card">
-        {GROUPS.map((g) => {
-          const entries = AGENT_ENTRIES.filter((e) => e.group === g.id);
-          if (entries.length === 0) return null;
-          return (
-            <div key={g.id} className="shelf-row">
-              <span className="shelf-group">{g.label}</span>
-              <div className="shelf-tiles">
-                {entries.map((entry) => (
-                  <ShelfTile
-                    key={entry.id}
-                    entry={entry}
-                    active={entry.id === selectedId}
-                    onClick={() => setSelectedId(entry.id)}
-                  />
-                ))}
-              </div>
-            </div>
-          );
-        })}
+        <div className="shelf-tiles">
+          {AGENT_ENTRIES.map((entry) => (
+            <ShelfTile
+              key={entry.id}
+              entry={entry}
+              active={entry.id === selectedId}
+              onClick={() => setSelectedId(entry.id)}
+            />
+          ))}
+        </div>
       </Card>
 
       {/* 参数条 */}
@@ -156,7 +141,7 @@ function ShelfTile({ entry, active, onClick }: { entry: AgentEntry; active: bool
       ) : (
         <span className="shelf-logo shelf-letter">{entry.iconText}</span>
       )}
-      <span className="shelf-name">{entry.name}</span>
+      <span className="shelf-name">{entry.shortName ?? entry.name}</span>
     </button>
   );
 }

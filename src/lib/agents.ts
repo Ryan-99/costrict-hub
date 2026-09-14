@@ -24,6 +24,8 @@ export interface AgentEntry {
   protocol: "OpenAI 兼容" | "Anthropic 兼容" | "OpenAI / Anthropic";
   /** 工具 logo 资源;缺省用首字母徽标 */
   logo?: string;
+  /** 选择架单行展示用的短名;缺省用 name */
+  shortName?: string;
   iconText: string;
   summary: string;
   steps: string[];
@@ -251,6 +253,7 @@ env_key = "COSTRICT_API_KEY"`,
   },
   {
     id: "cline-roo",
+    shortName: "Cline · Roo",
     name: "Cline / Roo Code",
     vendor: "VSCode 插件",
     group: "international",
@@ -273,6 +276,7 @@ env_key = "COSTRICT_API_KEY"`,
   // ================= 通用 =================
   {
     id: "generic-openai",
+    shortName: "OpenAI",
     name: "任意 OpenAI 兼容客户端",
     vendor: "通用",
     group: "generic",
@@ -291,6 +295,7 @@ env_key = "COSTRICT_API_KEY"`,
   },
   {
     id: "generic-anthropic",
+    shortName: "Anthropic",
     name: "任意 Anthropic 兼容客户端",
     vendor: "通用",
     group: "generic",

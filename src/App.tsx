@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { LayoutDashboard, Boxes, PlugZap, ChartColumn, Settings as SettingsIcon } from "lucide-react";
 import { api, onStatus, onQuota } from "./lib/bridge";
 import type { Page, QuotaSnapshot, Settings, StatusInfo } from "./lib/types";
 import Dashboard from "./pages/Dashboard";
@@ -10,12 +11,12 @@ import SettingsPage from "./pages/Settings";
 import hubIcon from "./assets/logos/hub-icon.svg";
 import "./App.css";
 
-const NAV: { id: Page; label: string }[] = [
-  { id: "dashboard", label: "仪表盘" },
-  { id: "models", label: "模型" },
-  { id: "agents", label: "接入" },
-  { id: "stats", label: "统计" },
-  { id: "settings", label: "设置" },
+const NAV: { id: Page; label: string; icon: typeof LayoutDashboard }[] = [
+  { id: "dashboard", label: "仪表盘", icon: LayoutDashboard },
+  { id: "models", label: "模型", icon: Boxes },
+  { id: "agents", label: "接入", icon: PlugZap },
+  { id: "stats", label: "统计", icon: ChartColumn },
+  { id: "settings", label: "设置", icon: SettingsIcon },
 ];
 
 const appWindow = getCurrentWindow();
@@ -91,7 +92,8 @@ export default function App() {
           <nav>
             {NAV.map((n) => (
               <button key={n.id} className={`nav-item ${page === n.id ? "active" : ""}`} onClick={() => setPage(n.id)}>
-                {n.label}
+                <n.icon size={16} strokeWidth={2} />
+                <span>{n.label}</span>
               </button>
             ))}
           </nav>
