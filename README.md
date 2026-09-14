@@ -22,6 +22,24 @@ CoStrict 云端(https://zgsm.sangfor.com,支持企业内网地址)
 
 Hub 负责编排:一键 SSO 认证、服务启停与自愈、本地 API Key 管理、额度看板、模型列表、用量统计、接入配置生成。上游 token 由 costrict-router 自己管理(Hub 不接触),与 pi-gui 等其他工具共享同一份登录态。
 
+## 界面
+
+**仪表盘** — 认证状态、服务启停、三要素直达复制、Credit 额度一目了然：
+
+![仪表盘](docs/screenshots/dashboard.png)
+
+**接入** — 点击工具 logo,配置片段自动代入端点 / Key / 模型，一键复制：
+
+![接入](docs/screenshots/agents.png)
+
+**模型** — 全部可用模型与单次 Credit 消耗：
+
+![模型](docs/screenshots/models.png)
+
+**统计** — 按天调用量与请求明细：
+
+![统计](docs/screenshots/stats.png)
+
 ## 功能
 
 - **仪表盘**:认证状态 + 重新认证弹窗、服务启停/重启、接入地址 / API Key / 默认模型三要素直达复制、Credit 额度进度条(15s 自动刷新)、当日用量

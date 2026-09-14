@@ -243,6 +243,10 @@ function AccessCard({
     setMsg(null);
     try {
       const nk = await api.resetKey();
+      // 重新读取存储,确保界面展示的是新签发的 key
+      const k = await api.getKey();
+      setKey(k.key);
+      setKeyRevealed(false);
       setMsg(nk ? "新 key 已签发并生效,记得更新各工具里的配置。" : "key reset 已执行。");
       onChanged();
     } catch (e) {

@@ -1,0 +1,270 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>CoStrict Hub · 把 CoStrict 额度接进每一个 AI 工具</title>
+<meta name="description" content="CoStrict Hub 将 CoStrict 账号的 Credit 额度通过本地 OpenAI/Anthropic 兼容接口代理给 Claude Code、Codex、Trae、WorkBuddy 等任意 AI 工具,带额度看板、接入配置生成与用量统计。" />
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 96 96'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='20' y1='80' x2='78' y2='18' gradientUnits='userSpaceOnUse'%3E%3Cstop offset='0' stop-color='%23094BFF'/%3E%3Cstop offset='1' stop-color='%230084FF'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='96' height='96' rx='22' fill='%230050e0'/%3E%3Ccircle cx='48' cy='48' r='26' stroke='%23fff' stroke-width='11' pathLength='360' stroke-dasharray='298 62' stroke-dashoffset='-119' stroke-linecap='round' fill='none'/%3E%3Ccircle cx='30' cy='66' r='9' fill='%232EE6C9'/%3E%3C/svg%3E" />
+<style>
+  :root {
+    --bg: #ffffff;
+    --bg-alt: #f5f5f7;
+    --text: #1d1d1f;
+    --text-2: #6e6e73;
+    --primary: #0053dc;
+    --grad-a: #094bff;
+    --grad-b: #0084ff;
+    --purple: #7b5cff;
+    --teal: #2ee6c9;
+    --card-border: #e8e8ed;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: -apple-system, "SF Pro Text", "PingFang SC", "Segoe UI", "Microsoft YaHei UI", "Microsoft YaHei", sans-serif;
+    color: var(--text); background: var(--bg);
+    -webkit-font-smoothing: antialiased; line-height: 1.6;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
+
+  /* nav */
+  nav { position: sticky; top: 0; z-index: 100; background: rgba(255,255,255,.82); backdrop-filter: blur(20px); border-bottom: 1px solid rgba(0,0,0,.06); }
+  .nav-in { display: flex; align-items: center; gap: 28px; height: 52px; }
+  .brand { display: flex; align-items: center; gap: 9px; font-weight: 700; font-size: 15px; text-decoration: none; color: var(--text); }
+  .brand-ico { width: 26px; height: 26px; border-radius: 7px; background: linear-gradient(135deg, var(--grad-a), var(--grad-b)); display: grid; place-items: center; }
+  .brand-ico svg { width: 17px; height: 17px; }
+  nav .links { display: flex; gap: 22px; margin-left: auto; }
+  nav .links a { color: var(--text-2); text-decoration: none; font-size: 13px; font-weight: 500; }
+  nav .links a:hover { color: var(--primary); }
+  .nav-gh { background: var(--text); color: #fff !important; padding: 6px 14px; border-radius: 999px; }
+  .nav-gh:hover { background: #000 !important; }
+  @media (max-width: 720px) { nav .links a:not(.nav-gh) { display: none; } }
+
+  /* hero */
+  .hero { text-align: center; padding: 96px 0 40px; }
+  .badge { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 600; color: var(--primary); background: #eaf1ff; border-radius: 999px; padding: 5px 15px; margin-bottom: 22px; }
+  h1 { font-size: clamp(38px, 6vw, 64px); line-height: 1.12; letter-spacing: -1.5px; font-weight: 800; }
+  h1 .grad { background: linear-gradient(100deg, var(--grad-a) 10%, var(--grad-b) 55%, var(--purple) 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .hero p.sub { font-size: clamp(16px, 2.2vw, 20px); color: var(--text-2); max-width: 640px; margin: 22px auto 0; }
+  .cta { display: flex; gap: 12px; justify-content: center; margin-top: 34px; flex-wrap: wrap; }
+  .btn { display: inline-flex; align-items: center; gap: 8px; padding: 13px 30px; border-radius: 999px; font-size: 15px; font-weight: 600; text-decoration: none; transition: transform .15s, box-shadow .15s; }
+  .btn-primary { background: linear-gradient(135deg, var(--grad-a), var(--grad-b)); color: #fff; box-shadow: 0 8px 24px rgba(9,75,255,.3); }
+  .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 12px 30px rgba(9,75,255,.4); }
+  .btn-ghost { background: #fff; color: var(--text); border: 1px solid var(--card-border); }
+  .btn-ghost:hover { border-color: #c9c9ce; }
+  .hero-note { margin-top: 14px; font-size: 12px; color: var(--text-2); }
+  .hero-shot { margin: 56px auto 0; max-width: 980px; border-radius: 18px; overflow: hidden; border: 1px solid var(--card-border); box-shadow: 0 30px 80px rgba(9,75,255,.16); }
+  .hero-shot img { display: block; width: 100%; }
+
+  /* logo strip */
+  .tools { padding: 56px 0 20px; text-align: center; }
+  .tools .label { font-size: 12.5px; letter-spacing: 1.5px; color: var(--text-2); text-transform: uppercase; font-weight: 600; }
+  .tools .row { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px 28px; margin-top: 22px; }
+  .tools .t { font-size: 16px; font-weight: 600; color: var(--text); opacity: .75; }
+
+  /* sections */
+  section { padding: 90px 0; }
+  section.alt { background: var(--bg-alt); }
+  .sec-head { text-align: center; max-width: 640px; margin: 0 auto 54px; }
+  .sec-head h2 { font-size: clamp(30px, 4vw, 44px); letter-spacing: -1px; font-weight: 800; }
+  .sec-head p { color: var(--text-2); font-size: 17px; margin-top: 14px; }
+
+  /* features */
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+  @media (max-width: 860px) { .grid { grid-template-columns: 1fr 1fr; } }
+  @media (max-width: 560px) { .grid { grid-template-columns: 1fr; } }
+  .feat { background: #fff; border: 1px solid var(--card-border); border-radius: 18px; padding: 28px 26px; }
+  .feat .ico { width: 44px; height: 44px; border-radius: 12px; display: grid; place-items: center; margin-bottom: 16px; background: #eaf1ff; color: var(--primary); }
+  .feat h3 { font-size: 16.5px; font-weight: 700; margin-bottom: 8px; }
+  .feat p { font-size: 13.5px; color: var(--text-2); }
+
+  /* steps */
+  .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; counter-reset: step; }
+  @media (max-width: 860px) { .steps { grid-template-columns: 1fr; } }
+  .step { background: #fff; border-radius: 18px; padding: 30px 28px; border: 1px solid var(--card-border); }
+  .step .n { width: 34px; height: 34px; border-radius: 50%; background: linear-gradient(135deg, var(--grad-a), var(--grad-b)); color: #fff; font-weight: 700; display: grid; place-items: center; margin-bottom: 14px; }
+  .step h3 { font-size: 16px; margin-bottom: 8px; }
+  .step p { font-size: 13.5px; color: var(--text-2); }
+  .step code { font-family: "Cascadia Code", Consolas, monospace; font-size: 12px; background: #f6f8fb; padding: 2px 7px; border-radius: 6px; }
+
+  /* shot rows */
+  .shot-row { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: center; }
+  @media (max-width: 860px) { .shot-row { grid-template-columns: 1fr; } }
+  .shot-row .txt h3 { font-size: 26px; letter-spacing: -.5px; margin-bottom: 12px; font-weight: 800; }
+  .shot-row .txt p { color: var(--text-2); font-size: 15px; }
+  .shot-row img { width: 100%; border-radius: 14px; border: 1px solid var(--card-border); box-shadow: 0 16px 44px rgba(29,29,31,.12); }
+
+  /* download */
+  .dl { text-align: center; background: linear-gradient(135deg, #0a1440, #0b2a6b 55%, #123a8a); color: #fff; border-radius: 24px; padding: 64px 30px; }
+  .dl h2 { font-size: clamp(28px, 4vw, 42px); font-weight: 800; letter-spacing: -1px; }
+  .dl p { color: #b8c6e8; margin: 14px 0 30px; font-size: 15.5px; }
+  .dl .btn { background: #fff; color: var(--primary); }
+  .dl .btn:hover { transform: translateY(-1px); }
+  .dl .small { font-size: 12px; color: #8fa3cf; margin-top: 18px; }
+
+  footer { padding: 40px 0 60px; text-align: center; color: var(--text-2); font-size: 12.5px; }
+  footer a { color: var(--text-2); }
+  footer .sep { margin: 0 8px; color: #c7c7cc; }
+
+  /* reveal */
+  .rv { opacity: 0; transform: translateY(24px); transition: opacity .6s, transform .6s; }
+  .rv.on { opacity: 1; transform: none; }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="wrap nav-in">
+    <a class="brand" href="#top">
+      <span class="brand-ico">
+        <svg viewBox="0 0 96 96" fill="none"><circle cx="48" cy="48" r="30" stroke="#fff" stroke-width="13" pathLength="360" stroke-dasharray="298 62" stroke-dashoffset="-119" stroke-linecap="round"/><circle cx="24.5" cy="69" r="11.5" fill="#2EE6C9"/><circle cx="76.5" cy="21.5" r="5.2" fill="#7B5CFF"/></svg>
+      </span>
+      CoStrict Hub
+    </a>
+    <div class="links">
+      <a href="#features">功能</a>
+      <a href="#how">工作原理</a>
+      <a href="#agents">接入工具</a>
+      <a href="#download" class="nav-gh">下载</a>
+    </div>
+  </div>
+</nav>
+
+<header class="hero wrap" id="top">
+  <span class="badge">⚡ 基于 CoStrict 开放生态 · 本地运行 · 数据不出本机</span>
+  <h1>一份 CoStrict 额度<br /><span class="grad">接进你的每一个 AI 工具</span></h1>
+  <p class="sub">CoStrict Hub 在本地把 CoStrict 账号的 Credit 额度变成 OpenAI / Anthropic 兼容接口——Claude Code、Codex、Trae、WorkBuddy、Cline,统统接入,额度与用量一目了然。</p>
+  <div class="cta">
+    <a class="btn btn-primary" href="#download">⬇ 下载 Windows 安装包</a>
+    <a class="btn btn-ghost" href="https://github.com/Ryan-99/costrict-hub" target="_blank" rel="noopener">GitHub 源码</a>
+  </div>
+  <p class="hero-note">免费开源 · MIT License · Windows 10 / 11 x64</p>
+  <div class="hero-shot rv"><img src="screenshots/dashboard.png" alt="CoStrict Hub 仪表盘" /></div>
+</header>
+
+<div class="tools wrap">
+  <div class="label">支持的 AI 工具</div>
+  <div class="row">
+    <span class="t">WorkBuddy</span><span class="t">CodeBuddy</span><span class="t">Trae</span><span class="t">ZCode</span>
+    <span class="t">Qwen Code</span><span class="t">Claude Code</span><span class="t">Codex</span><span class="t">Cline / Roo Code</span>
+    <span class="t">任意 OpenAI 兼容客户端</span><span class="t">任意 Anthropic 兼容客户端</span>
+  </div>
+</div>
+
+<section id="features" class="alt">
+  <div class="wrap">
+    <div class="sec-head rv">
+      <h2>认证一次,处处可用</h2>
+      <p>Hub 负责认证、启动、额度与统计;生成流量全走本地,上游 token 由 costrict-router 自动管理。</p>
+    </div>
+    <div class="grid">
+      <div class="feat rv">
+        <div class="ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg></div>
+        <h3>一键认证</h3>
+        <p>深信服 SSO 弹窗登录,支持企业内网私有化地址;服务崩溃或重启后自动拉起,无需人工值守。</p>
+      </div>
+      <div class="feat rv">
+        <div class="ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-4"/></svg></div>
+        <h3>额度看板</h3>
+        <p>Credit 总额、已用、剩余实时进度条,15 秒自动刷新;还能看到每个模型单次调用的 Credit 消耗。</p>
+      </div>
+      <div class="feat rv">
+        <div class="ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg></div>
+        <h3>双协议本地接口</h3>
+        <p>OpenAI 与 Anthropic 协议同时兼容,chat/completions、messages、responses 一应俱全,流式无损。</p>
+      </div>
+      <div class="feat rv">
+        <div class="ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></div>
+        <h3>接入配置生成</h3>
+        <p>点工具 logo,拿到代入端点、Key、模型的现成配置片段;Codex 更可一键自动写入配置文件。</p>
+      </div>
+      <div class="feat rv">
+        <div class="ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></div>
+        <h3>用量统计</h3>
+        <p>按天调用量、Token 消耗、错误请求,最近请求明细逐一可见,额度花在哪清清楚楚。</p>
+      </div>
+      <div class="feat rv">
+        <div class="ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9z"/></svg></div>
+        <h3>托盘常驻</h3>
+        <p>关闭窗口即最小化托盘,开机自启、单实例、退出自动收尾,像原生小工具一样安静可靠。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="how">
+  <div class="wrap">
+    <div class="sec-head rv">
+      <h2>它是怎么做到的</h2>
+      <p>Hub 托管开源的 costrict-router,把认证、协议转换这些难事都关在本地一条链路里。</p>
+    </div>
+    <div class="steps">
+      <div class="step rv">
+        <div class="n">1</div>
+        <h3>认证 CoStrict 账号</h3>
+        <p>点一下「登录」,浏览器完成深信服 SSO。上游 token 由 costrict-router 自动持有并按期刷新。</p>
+      </div>
+      <div class="step rv">
+        <div class="n">2</div>
+        <h3>本地接口就绪</h3>
+        <p>router 在 <code>127.0.0.1:14567</code> 提供兼容接口,自动做协议转换;Hub 常驻看护,掉线自愈。</p>
+      </div>
+      <div class="step rv">
+        <div class="n">3</div>
+        <h3>任意工具接入</h3>
+        <p>把接入地址、本地 Key、模型名填进任意工具——from Claude Code to Trae,额度共享、消耗可见。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="agents" class="alt">
+  <div class="wrap">
+    <div class="shot-row rv">
+      <div>
+        <h3>接入配置,点一下就有</h3>
+        <p>国产与国际主流 AI 工具逐个适配:WorkBuddy、CodeBuddy、Trae、ZCode、Qwen Code、Claude Code、Codex、Cline / Roo Code……点 logo 即得分步指引和可复制配置,Key 与默认模型自动代入。</p>
+      </div>
+      <img src="screenshots/agents.png" alt="接入配置生成" loading="lazy" />
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="shot-row rv" style="grid-template-columns: 1fr 1fr;">
+      <img src="screenshots/models.png" alt="模型列表" loading="lazy" />
+      <img src="screenshots/stats.png" alt="用量统计" loading="lazy" />
+    </div>
+  </div>
+</section>
+
+<section id="download">
+  <div class="wrap">
+    <div class="dl rv">
+      <h2>现在就把额度用起来</h2>
+      <p>安装即用,内置 costrict-router,无需额外配置。</p>
+      <a class="btn" href="https://github.com/Ryan-99/costrict-hub/releases/latest" target="_blank" rel="noopener">下载 Windows 安装包</a>
+      <p class="small">Windows 10 / 11 x64 · 免费开源 · MIT License</p>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <a href="https://github.com/Ryan-99/costrict-hub" target="_blank" rel="noopener">GitHub</a><span class="sep">·</span>
+    <a href="https://github.com/mokeyjay/costrict-router" target="_blank" rel="noopener">costrict-router</a><span class="sep">·</span>
+    <a href="https://github.com/zgsm-ai/costrict" target="_blank" rel="noopener">CoStrict</a>
+    <p style="margin-top: 12px;">CoStrict Hub · MIT License · 本项目为独立第三方工具,与深信服官方无隶属关系</p>
+  </div>
+</footer>
+
+<script>
+  const io = new IntersectionObserver((es) => {
+    es.forEach((e) => { if (e.isIntersecting) { e.target.classList.add("on"); io.unobserve(e.target); } });
+  }, { threshold: 0.12 });
+  document.querySelectorAll(".rv").forEach((el) => io.observe(el));
+</script>
+</body>
+</html>
