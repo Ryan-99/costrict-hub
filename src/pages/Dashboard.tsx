@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { api, onLoginEvent } from "../lib/bridge";
 import type { LoginEvent, QuotaSnapshot, Settings, StatusInfo } from "../lib/types";
 import { Btn, ConfirmBar, Empty, Modal, Pill, fmtNum } from "../components/ui";
-import costrictIcon from "../assets/logos/costrict-icon.png";
+import hubIcon from "../assets/logos/hub-icon.svg";
 
 export default function Dashboard({
   status,
@@ -97,7 +97,7 @@ function HeroCard({ status, onChanged }: { status: StatusInfo; onChanged: () => 
   return (
     <section className="hero-card">
       <div className="hero-row">
-        <img className="hero-logo" src={costrictIcon} alt="CoStrict" />
+        <img className="hero-logo" src={hubIcon} alt="CoStrict Hub" />
         <div className="hero-main">
           <div className="hero-title-row">
             <span className="hero-title">CoStrict 账号</span>
