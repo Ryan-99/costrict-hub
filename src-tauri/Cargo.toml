@@ -28,6 +28,14 @@ reqwest = { version = "0.12", default-features = false, features = ["json", "rus
 sha2 = "0.10"
 uuid = { version = "1", features = ["v4"] }
 thiserror = "2"
+chrono = { version = "0.4", features = ["serde"] }
+dirs = "6"
+regex = "1"
+url = "2"
+tar = "0.4"
+flate2 = "1"
+zip = { version = "2", default-features = false, features = ["deflate"] }
+
 [target.'cfg(target_os = "windows")'.dependencies]
 keyring = { version = "3", features = ["windows-native"] }
 
@@ -36,13 +44,6 @@ keyring = { version = "3", features = ["apple-native"] }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 keyring = { version = "3", features = ["sync-secret-service"] }
-chrono = { version = "0.4", features = ["serde"] }
-dirs = "6"
-regex = "1"
-url = "2"
-tar = "0.4"
-flate2 = "1"
-zip = { version = "2", default-features = false, features = ["deflate"] }
 
 [profile.release]
 codegen-units = 1
