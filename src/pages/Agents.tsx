@@ -43,9 +43,12 @@ export default function AgentsPage({
     onSettingsChanged({ defaultModel: m }).catch(() => {});
   };
 
+  // ?demo=1:演示模式,片段与参数条中的 Key 显示占位符(用于截图/演示,不泄露真实 key)
+  const demo = new URLSearchParams(window.location.search).has("demo");
+  const keyDisplay = demo ? "sk-costrict-****" : hideKey ? "••••••••" : key || "未获取";
   const vars = useMemo(
-    () => ({ origin, key: hideKey ? "sk-costrict-****(复制时请先点显示)" : key, model }),
-    [origin, key, model, hideKey],
+    () => ({ origin, key: demo || hideKey ? "sk-costrict-****" : key, model }),
+    [origin, key, demo, hideKey, model],
   );
 
   const runCatalog = async () => {
@@ -97,7 +100,7 @@ export default function AgentsPage({
           )}
           <span className="flex-1" />
           <label className="agents-label">API Key</label>
-          <code className="agents-key">{hideKey ? "••••••••" : key || "未获取"}</code>
+          <code className="agents-key">{keyDisplay}</code>
           <button className="link-btn" onClick={() => setHideKey((h) => !h)}>
             {hideKey ? "显示" : "隐藏"}
           </button>
