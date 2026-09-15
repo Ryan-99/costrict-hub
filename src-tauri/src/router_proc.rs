@@ -185,6 +185,15 @@ pub fn ensure_binary(app: &AppHandle) -> Result<std::path::PathBuf, String> {
     Err("未找到 costrict-router 二进制,请在设置页下载安装".into())
 }
 
+/// 异步版:本地缺失时自动从 GitHub Releases 下载安装(带 sha256 校验)
+pub async fn ensure_binary_ready(app: &AppHandle) -> Result<std::path::PathBuf, String> {
+    if let Ok(p) = ensure_binary(app) {
+        return Ok(p);
+    }
+    crate::binmgmt::download_latest(app.clone()).await?;
+    ensure_binary(app)
+}
+
 // ---------- 服务启停 ----------
 
 #[derive(Debug, Clone, Serialize)]
@@ -199,7 +208,7 @@ async fn start_locked(app: &AppHandle) -> Result<StartOutcome, String> {
     let (bin, port) = {
         let st = app.state::<AppState>();
         let port = st.settings.lock().unwrap().port;
-        (ensure_binary(app)?, port)
+        (ensure_binary_ready(app).await?, port)
     };
     if is_service_running(port).await {
         return Ok(StartOutcome { already_running: true, healthy: true, new_key: None });
@@ -253,7 +262,7 @@ pub async fn stop_service(app: AppHandle) -> Result<(), String> {
     let (bin, port) = {
         let st = app.state::<AppState>();
         let port = st.settings.lock().unwrap().port;
-        (ensure_binary(&app)?, port)
+        (ensure_binary_ready(&app).await?, port)
     };
     // 先按 hub 的 pid 文件停,再补一次默认 stop(覆盖外部/pigui 拉起的情况)
     let pid_str = paths::hub_router_pid(&app).to_string_lossy().into_owned();
@@ -278,7 +287,7 @@ pub async fn restart_service(app: AppHandle) -> Result<StartOutcome, String> {
 /// 重新签发一次性本地 key(会使其他工具里配置的旧 key 失效,UI 需确认)。
 /// key reset 会把新 key 打印到 stdout(只此一次),随后必须重启服务才生效。
 pub async fn key_reset(app: AppHandle) -> Result<Option<String>, String> {
-    let bin = ensure_binary(&app)?;
+    let bin = ensure_binary_ready(&app).await?;
     let (_code, output) = run_capture(&bin, &["key", "reset"], Duration::from_secs(30)).await?;
     let new_key = parse::extract_api_key(&output);
     if new_key.is_none() {
@@ -325,7 +334,7 @@ pub async fn login_flow(app: AppHandle, base_url: String) {
         );
         return;
     }
-    let bin = match ensure_binary(&app) {
+    let bin = match ensure_binary_ready(&app).await {
         Ok(b) => b,
         Err(e) => {
             emit_login(&app, "error", Some(e), None, None);

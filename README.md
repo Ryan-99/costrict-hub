@@ -6,7 +6,12 @@ Tauri 2 桌面应用(Rust 核心 + React/TS 前端),Windows 优先,常驻托盘�
 
 ## 下载
 
-从 [Releases](https://github.com/Ryan-99/costrict-hub/releases/latest) 下载 `CoStrict Hub_x.x.x_x64-setup.exe` 安装使用(内置 costrict-router,安装即用,自带 sha256 校验)。
+从 [Releases](https://github.com/Ryan-99/costrict-hub/releases/latest) 下载安装(内置 costrict-router,安装即用,自带 sha256 校验):
+
+- **Windows 10/11 x64**:`CoStrict.Hub_x.x.x_x64-setup.exe`
+- **macOS 12+**(Apple Silicon / Intel 通用):`CoStrict.Hub_x.x.x_universal.dmg`
+
+> macOS 首次使用时,Hub 会自动从 GitHub Releases 下载对应平台的 costrict-router(带 sha256 校验)。
 
 ## 它是怎么工作的
 
@@ -51,8 +56,8 @@ Hub 负责编排:一键 SSO 认证、服务启停与自愈、本地 API Key 管�
 
 ## 使用前提
 
-- CoStrict 账号(深信服 SSO 登录)
-- Windows 10/11 x64
+- CoStrict 账号(SSO 登录)
+- Windows 10/11 x64 或 macOS 12+
 
 ## 构建
 

@@ -121,7 +121,7 @@ pub async fn save_settings(app: AppHandle, settings: Settings) -> Result<Setting
 /// router 自带的 Codex 接入:自动写 ~/.codex/config.toml(实际改动由 router 完成)
 #[tauri::command]
 pub async fn codex_catalog(app: AppHandle) -> Result<String, String> {
-    let bin = router_proc::ensure_binary(&app)?;
+    let bin = router_proc::ensure_binary_ready(&app).await?;
     let (_code, output) = router_proc::run_capture(&bin, &["codex-catalog"], std::time::Duration::from_secs(60)).await?;
     Ok(output)
 }
@@ -129,7 +129,7 @@ pub async fn codex_catalog(app: AppHandle) -> Result<String, String> {
 /// router 自带连通自检:真实发送一条消息(消耗 Credit,UI 需确认)
 #[tauri::command]
 pub async fn test_model(app: AppHandle, model: String) -> Result<String, String> {
-    let bin = router_proc::ensure_binary(&app)?;
+    let bin = router_proc::ensure_binary_ready(&app).await?;
     let (_code, output) = router_proc::run_capture(
         &bin,
         &["test", "--model", &model],
