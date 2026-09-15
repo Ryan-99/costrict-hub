@@ -26,19 +26,19 @@ Hub 负责编排:一键 SSO 认证、服务启停与自愈、本地 API Key 管�
 
 **仪表盘** — 认证状态、服务启停、三要素直达复制、Credit 额度一目了然：
 
-![仪表盘](docs/screenshots/dashboard.png)
+![仪表盘](docs/screenshots/dashboard.webp)
 
 **接入** — 点击工具 logo,配置片段自动代入端点 / Key / 模型，一键复制：
 
-![接入](docs/screenshots/agents.png)
+![接入](docs/screenshots/agents.webp)
 
 **模型** — 全部可用模型与单次 Credit 消耗：
 
-![模型](docs/screenshots/models.png)
+![模型](docs/screenshots/models.webp)
 
 **统计** — 按天调用量与请求明细：
 
-![统计](docs/screenshots/stats.png)
+![统计](docs/screenshots/stats.webp)
 
 ## 功能
 
