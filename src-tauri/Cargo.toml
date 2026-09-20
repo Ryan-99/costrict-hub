@@ -1,6 +1,6 @@
 [package]
 name = "costrict-hub"
-version = "0.1.1"
+version = "0.1.2"
 description = "CoStrict Hub - CoStrict 额度代理中枢"
 authors = ["Ryan"]
 edition = "2021"
@@ -24,7 +24,7 @@ tauri-plugin-clipboard-manager = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "process", "time", "sync", "fs", "io-util"] }
-reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "gzip"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "gzip", "macos-system-configuration"] }
 sha2 = "0.10"
 uuid = { version = "1", features = ["v4"] }
 thiserror = "2"

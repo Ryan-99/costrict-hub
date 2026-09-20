@@ -11,7 +11,7 @@ Tauri 2 桌面应用(Rust 核心 + React/TS 前端),Windows 优先,常驻托盘�
 - **Windows 10/11 x64**:`CoStrict.Hub_x.x.x_x64-setup.exe`
 - **macOS 12+**(Apple Silicon / Intel 通用):`CoStrict.Hub_x.x.x_universal.dmg`
 
-> macOS 首次使用时,Hub 会自动从 GitHub Releases 下载对应平台的 costrict-router(带 sha256 校验)。
+> macOS 安装包已内置双架构 costrict-router,开箱即用;Windows 内置 x64 版本。
 
 ## 它是怎么工作的
 

@@ -174,13 +174,16 @@ pub fn emit_status(app: &AppHandle) {
 
 /// 确保有可用二进制:解析失败时尝试从内置资源安装(带 sha256 校验)
 pub fn ensure_binary(app: &AppHandle) -> Result<std::path::PathBuf, String> {
+    let managed = paths::managed_binary_path(app);
+    if managed.is_file() {
+        return Ok(managed);
+    }
+    // 内置资源可用时先落到托管目录(unix 下补可执行位),避免直跑资源路径
+    if crate::binmgmt::install_from_resource(app) && managed.is_file() {
+        return Ok(managed);
+    }
     if let Some(p) = paths::resolve_router_binary(app) {
         return Ok(p);
-    }
-    if crate::binmgmt::install_from_resource(app) {
-        if let Some(p) = paths::resolve_router_binary(app) {
-            return Ok(p);
-        }
     }
     Err("未找到 costrict-router 二进制,请在设置页下载安装".into())
 }

@@ -14,8 +14,11 @@ const GITHUB_REPO: &str = "mokeyjay/costrict-router";
 const USER_AGENT: &str = "costrict-hub";
 
 /// 随包分发二进制的实测 sha256(升级二进制时同步更新;(平台键, sha256, 版本))
-const BUNDLED_BINARY_SHA256: &[(&str, &str, &str)] =
-    &[("windows-x64", "16e92a0af86b30592248fe648ea286d92866a62f4133ac9cd8db5c72064f43a2", "v0.3.2")];
+const BUNDLED_BINARY_SHA256: &[(&str, &str, &str)] = &[
+    ("windows-x64", "16e92a0af86b30592248fe648ea286d92866a62f4133ac9cd8db5c72064f43a2", "v0.3.2"),
+    ("macos-arm64", "4a037d3a90a2748b83838a6a89b813dbc119fe028f21184fd75a7c6c039a459e", "v0.3.2"),
+    ("macos-x64", "5f9711490cf1bffc2aaaf108553abf4da47f17236ca6cfecc49e4e3877e1dac9", "v0.3.2"),
+];
 
 /// 官方发行包 pin(key = tag/资产名)。上游发新版:更新此表,或删条目走 TOFU。
 const PINNED_SHA256: &[(&str, &str)] = &[
@@ -98,6 +101,12 @@ pub fn install_from_resource(app: &AppHandle) -> bool {
         }
         match std::fs::copy(&src, &target) {
             Ok(_) => {
+                // unix 下资源文件不带可执行位,落地后补齐
+                #[cfg(unix)]
+                {
+                    use std::os::unix::fs::PermissionsExt;
+                    let _ = std::fs::set_permissions(&target, std::fs::Permissions::from_mode(0o755));
+                }
                 if let Some(v) = version {
                     record_version(app, v);
                 }
