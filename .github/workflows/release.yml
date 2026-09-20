@@ -13,7 +13,7 @@ jobs:
       matrix:
         include:
           - os: macos-latest # 构建 universal(Apple Silicon + Intel)
-            args: --target universal-apple-darwin
+            args: --config src-tauri/tauri.macos.conf.json --target universal-apple-darwin
           - os: windows-latest
             args: ""
     runs-on: ${{ matrix.os }}

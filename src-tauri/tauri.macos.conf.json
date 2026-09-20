@@ -1,0 +1,8 @@
+{
+  "bundle": {
+    "resources": [
+      "resources/costrict/macos-arm64",
+      "resources/costrict/macos-x64"
+    ]
+  }
+}
