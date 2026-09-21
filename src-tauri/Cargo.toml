@@ -1,6 +1,6 @@
 [package]
 name = "costrict-hub"
-version = "0.1.3"
+version = "0.1.4"
 description = "CoStrict Hub - CoStrict 额度代理中枢"
 authors = ["Ryan"]
 edition = "2021"
