@@ -6,6 +6,8 @@ export interface StatusInfo {
   serviceRunning: boolean;
   serviceExternal: boolean;
   loggedIn: boolean;
+  /** 当前 CoStrict 账号显示名(JWT 解出) */
+  accountLabel: string | null;
   upstreamBaseUrl: string | null;
   configuredBaseUrl: string;
   keyPresent: boolean;

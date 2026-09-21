@@ -100,7 +100,7 @@ function HeroCard({ status, onChanged }: { status: StatusInfo; onChanged: () => 
         <img className="hero-logo" src={hubIcon} alt="CoStrict Hub" />
         <div className="hero-main">
           <div className="hero-title-row">
-            <span className="hero-title">CoStrict 账号</span>
+            <span className="hero-title">{status.accountLabel ?? "CoStrict 账号"}</span>
             {status.loggedIn ? <Pill tone="ok">✓ 已认证</Pill> : <Pill tone="warn">未认证</Pill>}
           </div>
           <div className="hero-sub">

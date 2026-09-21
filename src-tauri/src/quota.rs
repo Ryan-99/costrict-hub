@@ -177,11 +177,32 @@ pub fn spawn_quota_poller(app: AppHandle) {
     tauri::async_runtime::spawn(async move {
         let mut tick = tokio::time::interval(Duration::from_secs(15));
         tokio::time::sleep(Duration::from_secs(2)).await; // 等自愈先跑
+        let mut last_identity = String::new();
+        let mut last_running = false;
         loop {
             tick.tick().await;
+            // 服务运行状态变化(外部启停)→ 刷新状态
+            let port = app.state::<AppState>().settings.lock().unwrap().port;
+            let running = crate::router_proc::is_service_running(port).await;
+            if running != last_running {
+                last_running = running;
+                crate::router_proc::emit_status(&app);
+            }
             let Some(cfg) = crate::router_proc::read_router_config() else {
                 continue;
             };
+            // 账号身份变化(外部换号/重新登录)→ 刷新状态,界面账号显示跟随
+            let identity = format!(
+                "{}|{}",
+                cfg.user_id.clone().unwrap_or_default(),
+                cfg.account_label.clone().unwrap_or_default()
+            );
+            if identity != last_identity {
+                if !last_identity.is_empty() {
+                    crate::router_proc::emit_status(&app);
+                }
+                last_identity = identity;
+            }
             let Some(token) = cfg.access_token.clone() else { continue };
             let base = match cfg.base_url.clone() {
                 Some(b) => b,

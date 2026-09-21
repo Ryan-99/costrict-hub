@@ -283,6 +283,31 @@ mod tests {
     }
 
     #[test]
+    fn jwt_account_label_extracts_display_name() {
+        // 手写 base64url 编码,避免引入 base64 依赖
+        fn b64url(data: &[u8]) -> String {
+            const T: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+            let mut out = String::new();
+            for chunk in data.chunks(3) {
+                let b = [chunk[0], *chunk.get(1).unwrap_or(&0), *chunk.get(2).unwrap_or(&0)];
+                let n = ((b[0] as u32) << 16) | ((b[1] as u32) << 8) | b[2] as u32;
+                out.push(T[((n >> 18) & 63) as usize] as char);
+                out.push(T[((n >> 12) & 63) as usize] as char);
+                if chunk.len() > 1 { out.push(T[((n >> 6) & 63) as usize] as char); }
+                if chunk.len() > 2 { out.push(T[(n & 63) as usize] as char); }
+            }
+            out
+        }
+        let payload = b64url(r#"{"displayName":"张三81542","name":"x23","sub":"abc-123"}"#.as_bytes());
+        let token = format!("eyJhbGciOiJSUzI1NiJ9.{}.sig", payload);
+        assert_eq!(crate::router_proc::jwt_account_label(&token).as_deref(), Some("张三81542"));
+        let payload2 = b64url(r#"{"sub":"only-sub"}"#.as_bytes());
+        let token2 = format!("h.{}.s", payload2);
+        assert_eq!(crate::router_proc::jwt_account_label(&token2).as_deref(), Some("only-sub"));
+        assert_eq!(crate::router_proc::jwt_account_label("not-a-jwt"), None);
+    }
+
+    #[test]
     fn metrics_line_non_metrics() {
         assert!(parse_chat_metrics_line("2026/09/14 10:00:00 ✨ [INFO] started").is_none());
     }

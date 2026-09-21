@@ -80,17 +80,64 @@ pub struct RouterConfig {
     pub access_token: Option<String>,
     pub refresh_token: Option<String>,
     pub user_id: Option<String>,
+    /// 当前账号显示名(JWT displayName > name > email > sub)
+    pub account_label: Option<String>,
+}
+
+/// base64url 解码(JWT 段用,容忍缺省 padding 与 -_ / +/ 两种字母表)
+fn b64url_decode(s: &str) -> Option<Vec<u8>> {
+    let mut out = Vec::new();
+    let mut buf = 0u32;
+    let mut bits = 0u32;
+    for c in s.bytes() {
+        if c.is_ascii_whitespace() || c == b'=' {
+            continue;
+        }
+        let v = match c {
+            b'A'..=b'Z' => (c - b'A') as u32,
+            b'a'..=b'z' => (c - b'a' + 26) as u32,
+            b'0'..=b'9' => (c - b'0' + 52) as u32,
+            b'-' | b'+' => 62,
+            b'_' | b'/' => 63,
+            _ => return None,
+        };
+        buf = (buf << 6) | v;
+        bits += 6;
+        if bits >= 8 {
+            bits -= 8;
+            out.push((buf >> bits) as u8);
+        }
+    }
+    Some(out)
+}
+
+/// 从 JWT access_token 解出账号显示名(Casdoor claims:displayName > name > email > sub)
+pub fn jwt_account_label(token: &str) -> Option<String> {
+    let payload = token.split('.').nth(1)?;
+    let bytes = b64url_decode(payload)?;
+    let v: serde_json::Value = serde_json::from_slice(&bytes).ok()?;
+    for key in ["displayName", "name", "email", "sub"] {
+        if let Some(s) = v.get(key).and_then(|x| x.as_str()) {
+            if !s.trim().is_empty() {
+                return Some(s.trim().to_string());
+            }
+        }
+    }
+    None
 }
 
 pub fn read_router_config() -> Option<RouterConfig> {
     let path = paths::router_config_path()?;
     let raw = std::fs::read_to_string(path).ok()?;
     let v: serde_json::Value = serde_json::from_str(&raw).ok()?;
+    let access_token = v.get("access_token").and_then(|x| x.as_str()).map(String::from);
+    let account_label = access_token.as_deref().and_then(jwt_account_label);
     Some(RouterConfig {
         base_url: v.get("base_url").and_then(|x| x.as_str()).map(String::from),
-        access_token: v.get("access_token").and_then(|x| x.as_str()).map(String::from),
+        access_token,
         refresh_token: v.get("refresh_token").and_then(|x| x.as_str()).map(String::from),
         user_id: v.get("user_id").and_then(|x| x.as_str()).map(String::from),
+        account_label,
     })
 }
 
@@ -134,6 +181,7 @@ pub struct StatusInfo {
     pub service_running: bool,
     pub service_external: bool,
     pub logged_in: bool,
+    pub account_label: Option<String>,
     pub upstream_base_url: Option<String>,
     pub configured_base_url: String,
     pub key_present: bool,
@@ -154,6 +202,7 @@ pub async fn status_info(app: &AppHandle) -> StatusInfo {
         service_running: running,
         service_external,
         logged_in: is_logged_in(),
+        account_label: read_router_config().and_then(|c| c.account_label),
         upstream_base_url: read_router_config().and_then(|c| c.base_url),
         configured_base_url: settings.upstream_base_url,
         key_present: key.is_some(),
