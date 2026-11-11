@@ -92,6 +92,7 @@ export default function SettingsPage({
             保存
           </Btn>
         </div>
+        <p className="hint">支持企业版 / 内网自建地址(任意合法 http(s) 地址),如 https://costrict.yourcompany.com</p>
         <div className="form-row">
           <label>本地端口</label>
           <input type="number" value={settings.port} onChange={(e) => setSettings({ ...settings, port: Number(e.target.value) || 0 })} />

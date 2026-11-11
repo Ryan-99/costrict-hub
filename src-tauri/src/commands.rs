@@ -95,8 +95,8 @@ pub fn get_settings(app: AppHandle, settings: State<AppState>) -> Settings {
 
 #[tauri::command]
 pub async fn save_settings(app: AppHandle, settings: Settings) -> Result<Settings, String> {
-    if !crate::parse::is_allowed_costrict_url(&settings.upstream_base_url) {
-        return Err(format!("不允许的服务地址: {}(仅信任 *.sangfor.com)", settings.upstream_base_url));
+    if !crate::parse::is_safe_user_url(&settings.upstream_base_url) {
+        return Err(format!("服务地址需为合法的 http(s) 地址: {}", settings.upstream_base_url));
     }
     if settings.port < 1024 {
         return Err("端口需在 1024-65535 之间".into());

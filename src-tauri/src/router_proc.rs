@@ -376,16 +376,20 @@ fn emit_login(app: &AppHandle, stage: &str, message: Option<String>, url: Option
 }
 
 pub async fn login_flow(app: AppHandle, base_url: String) {
-    if !parse::is_allowed_costrict_url(&base_url) {
+    if !parse::is_safe_user_url(&base_url) {
         emit_login(
             &app,
             "error",
-            Some(format!("不允许的服务地址: {base_url}(仅信任 *.sangfor.com)")),
+            Some(format!("服务地址需为合法的 http(s) 地址: {base_url}")),
             None,
             None,
         );
         return;
     }
+    // 登录链接自动打开:深信服域之外,额外信任用户配置的服务地址主机(#1)
+    let extra_host = url::Url::parse(&base_url)
+        .ok()
+        .and_then(|u| u.host_str().map(|h| h.to_string()));
     let bin = match ensure_binary_ready(&app).await {
         Ok(b) => b,
         Err(e) => {
@@ -427,7 +431,7 @@ pub async fn login_flow(app: AppHandle, base_url: String) {
             let mut acc = shared_out.lock().unwrap();
             acc.push_str(&line);
             acc.push('\n');
-            if let Some(url) = parse::extract_login_url(&acc) {
+            if let Some(url) = parse::extract_login_url(&acc, extra_host.as_deref()) {
                 let _ = tauri_plugin_opener::open_url(url.clone(), None::<&str>);
                 emit_login(&app_out, "url", Some("已打开浏览器,请在页面完成 SSO 登录".into()), Some(&url), None);
             }

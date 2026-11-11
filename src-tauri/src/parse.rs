@@ -5,29 +5,48 @@ use regex::Regex;
 use serde::Serialize;
 use std::sync::OnceLock;
 
-/// CoStrict 相关地址的可信主机:深信服域或本机。
-/// 登录 URL / base-url 只信任这些,防止子进程输出被诱导成钓鱼链接(沿用 pi-gui CS-6)。
-pub fn is_allowed_costrict_url(raw: &str) -> bool {
+/// 用户主动输入的服务地址:只要合法的 http(s) URL 且带主机名即可。
+/// 企业版/内网部署域名各不相同,不再限制 *.sangfor.com(#1);
+/// 防 scheme 注入(javascript: 等)的检查保留。
+pub fn is_safe_user_url(raw: &str) -> bool {
     let Ok(u) = url::Url::parse(raw) else {
         return false;
     };
     if u.scheme() != "https" && u.scheme() != "http" {
         return false;
     }
-    let Some(host) = u.host_str() else {
-        return false;
-    };
-    let h = host.to_ascii_lowercase();
-    h == "localhost" || h == "127.0.0.1" || h.ends_with(".sangfor.com") || h == "sangfor.com"
+    u.host_str().is_some_and(|h| !h.is_empty())
 }
 
-/// 从 login 输出提取登录链接(排除本地服务地址,且只信任深信服域)
-pub fn extract_login_url(text: &str) -> Option<String> {
+/// 从 login 输出提取登录链接(排除本地服务地址)。
+/// 子进程输出可能被诱导成钓鱼链接(pi-gui CS-6),只自动打开深信服域
+/// 或用户自己配置的服务地址主机(extra_host);陌生主机一律不开。
+pub fn extract_login_url(text: &str, extra_host: Option<&str>) -> Option<String> {
     static RE: OnceLock<Regex> = OnceLock::new();
     let re = RE.get_or_init(|| Regex::new(r#"https?://[^\s'"]+"#).unwrap());
+    let extra_host = extra_host
+        .map(|h| h.trim().to_ascii_lowercase())
+        .filter(|h| !h.is_empty());
+    let host_of = |u: &str| -> Option<String> {
+        url::Url::parse(u)
+            .ok()
+            .and_then(|p| p.host_str().map(|h| h.to_ascii_lowercase()))
+    };
     re.find_iter(text)
         .map(|m| m.as_str())
-        .find(|u| is_allowed_costrict_url(u) && !u.contains("127.0.0.1") && !u.contains("localhost"))
+        .find(|u| {
+            if u.contains("127.0.0.1") || u.contains("localhost") {
+                return false; // 本地服务地址,不是登录链接
+            }
+            match host_of(u) {
+                Some(h) => {
+                    h.ends_with(".sangfor.com")
+                        || h == "sangfor.com"
+                        || extra_host.as_deref() == Some(h.as_str())
+                }
+                None => false,
+            }
+        })
         .map(|s| s.to_string())
 }
 
@@ -230,22 +249,33 @@ mod tests {
     use super::*;
 
     #[test]
-    fn allowed_url() {
-        assert!(is_allowed_costrict_url("https://zgsm.sangfor.com/oidc-auth?state=x"));
-        assert!(is_allowed_costrict_url("http://localhost:14567/healthz"));
-        assert!(!is_allowed_costrict_url("https://evil.example.com/oidc"));
-        assert!(!is_allowed_costrict_url("javascript:alert(1)"));
-        assert!(!is_allowed_costrict_url("not a url"));
+    fn user_url() {
+        assert!(is_safe_user_url("https://zgsm.sangfor.com"));
+        assert!(is_safe_user_url("https://costrict.corp.example.com")); // 企业自建域
+        assert!(is_safe_user_url("http://10.0.0.8:3000")); // 内网 http
+        assert!(!is_safe_user_url("javascript:alert(1)"));
+        assert!(!is_safe_user_url("file:///etc/passwd"));
+        assert!(!is_safe_user_url("not a url"));
     }
 
     #[test]
     fn login_url_extraction() {
         let out = "some noise\n登录链接: https://zgsm.sangfor.com/oidc-auth?state=abc\nalso http://127.0.0.1:14567/healthz\n";
         assert_eq!(
-            extract_login_url(out).as_deref(),
+            extract_login_url(out, None).as_deref(),
             Some("https://zgsm.sangfor.com/oidc-auth?state=abc")
         );
-        assert_eq!(extract_login_url("no url here"), None);
+        assert_eq!(extract_login_url("no url here", None), None);
+        // 企业自建域名:只有配置了同主机 base-url,输出里的链接才可信
+        let corp = "登录链接: https://costrict.corp.example.com/oidc-auth?state=abc";
+        assert_eq!(extract_login_url(corp, None), None);
+        assert_eq!(
+            extract_login_url(corp, Some("costrict.corp.example.com")).as_deref(),
+            Some("https://costrict.corp.example.com/oidc-auth?state=abc")
+        );
+        // 未配置的陌生主机仍然不信任(CS-6)
+        let evil = "登录链接: https://evil.example.com/oidc";
+        assert_eq!(extract_login_url(evil, Some("costrict.corp.example.com")), None);
     }
 
     #[test]
